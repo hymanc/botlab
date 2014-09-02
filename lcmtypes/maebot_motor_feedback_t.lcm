@@ -1,0 +1,18 @@
+
+struct maebot_motor_feedback_t
+{
+    int64_t utime;
+
+    int32_t encoder_left_ticks;
+    int32_t encoder_right_ticks;
+
+    // Only lowest 16 bits are significant (no unsigned int types in lcm)
+    int32_t motor_current_left;
+    int32_t motor_current_right;
+
+    float motor_left_commanded_speed;
+    float motor_right_commanded_speed;
+
+    float motor_left_actual_speed;
+    float motor_right_actual_speed;
+}

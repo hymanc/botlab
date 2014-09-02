@@ -1,0 +1,18 @@
+struct maebot_state_t
+{
+	int64_t timestamp;
+	int32_t encoder_left_ticks;
+	int32_t encoder_right_ticks;
+
+	int16_t motor_left_speed_cmd;
+   	int16_t motor_right_speed_cmd;
+
+    int16_t accel[3]; // X, Y, Z
+    int16_t gyro[3];  // r, p, y ?
+
+   	int16_t line_sensors[3]; // 0 - Left, 1 - Center, 2 - Right
+   	int16_t range;
+
+   	int16_t motor_current_left;
+    int16_t motor_current_right;
+}

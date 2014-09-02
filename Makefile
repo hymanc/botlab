@@ -1,4 +1,4 @@
-SUBDIRS = src java
+SUBDIRS = src java solns
 
 MAKEFLAGS += --no-print-directory
 

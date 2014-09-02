@@ -1,7 +1,6 @@
 # Only add your directories to this folder if you are 100% sure that
 # it will always compile without warnings.
-SUBDIRS = lcmtypes common math math/demos imagesource vx vx/gtk apps rexarm maebot \
-	  armlab
+SUBDIRS = lcmtypes common math math/demos imagesource vx vx/gtk apps rexarm maebot
 
 MAKEFLAGS += --no-print-directory
 

@@ -1,14 +1,16 @@
 If you would like to compile the course libraries on your own machines, and are running ubuntu 12.04, you can run the following commands as root or using sudo to install the necessary packages. Note these are actually a super-set of the packages, some of these are just useful to have. For other versions of linux, similar packages should exist.
 
-sudo apt-get -y install emacs vim-gtk cvs subversion git-core gitk units octave3.2 imagemagick ssh denyhosts smartmontools nmap netcat curl wireshark traceroute ffmpeg mplayer vlc sysstat valgrind autopoint xchat mesa-utils
+sudo apt-get -y install emacs vim-gtk cvs subversion git-core gitk units octave3.2 imagemagick ssh denyhosts smartmontools nmap netcat curl wireshark traceroute ffmpeg mplayer vlc sysstat valgrind autopoint xchat mesa-utils pkg-config
 
 sudo apt-get -y install autoconf automake autotools-dev libglib2.0-dev manpages-dev manpages-posix-dev libgl1-mesa-dev gtk-doc-tools libgtk2.0-dev python-dev libusb-dev libusb-1.0-0-dev libfuse-dev libi2c-dev libdc1394-22-dev libdc1394-utils libgsl0-dev gsl-doc-info gsl-doc-pdf
 
 sudo apt-get -y install ant openjdk-6-jdk
 
-You will also need to install LCM.  You can download version lcm-1.1.1 or higher from http://code.google.com/p/lcm, or alternatively, you can pull the latest source using git.  You will then to build and install from source following LCM's install directions.
+You will also need to install LCM.  You can download version lcm-1.1.1 or higher from http://code.google.com/p/lcm, or alternatively, you can pull the latest source using git.  You will then to build and install from source following LCM's install directions.  Be sure to run ldconfig after having built LCM so that the linker can find it.
 
 git clone https://code.google.com/p/lcm/
+cd lcm && ./configure && make install
+sudo ldconfig
 
 You will also need to add udev rules to your computer if you don't want to have to use sudo to run the rexarm_driver. Copy the rob550 udev rules file from misc to /etc/udev/rules.d/ on your personal computer. You will need to sudo to do this!
 
@@ -21,3 +23,13 @@ Note for Matlab.  If you are using LCM from Matlab, make sure openjdk-6 is selec
 sudo update-alternatives --config java
 sudo update-alternatives --config javac
 sudo update-alternatives --config jar
+
+Upon a clean checkout of rob550, as a one time thing, you need to build vx's fonts (you will need a working internet connection for this so that the Makefile can pull a fonts tarball from the web):
+
+cd rob550/src/vx
+make fonts
+
+You are now all set to build the rob550 source using `make` or `make clean`:
+
+cd rob550
+make 

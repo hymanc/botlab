@@ -63,7 +63,7 @@ ALL = $(LIB_VX) $(LIB_VXGL) vx_make_font
 #############################################################
 #gcc -shared -Wl,-soname,$(LIB) -o $(LIB) $(LIBVX_OBJS)
 
-all: $(ALL)
+all: $(ALL) fonts
 
 $(LIB_VX): $(LIBVX_OBJS)
 	@echo "\t$@"
@@ -86,4 +86,4 @@ vx_make_font: vx_make_font.o
 
 clean:
 	@rm -f *~ *.o *.d
-	@rm -f vx_test vx_make_font $(ALL)
+	@rm -f vx_make_font $(ALL)

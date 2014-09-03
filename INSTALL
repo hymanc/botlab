@@ -16,7 +16,7 @@ You will also need to add udev rules to your computer if you don't want to have 
 
 sudo cp misc/99-rob550.rules /etc/udev/rules.d/.
 
-Then, unplug your USB devices and plug them back in so the rules take effect. You should now be able to run rexarm_driver without sudo.
+Then, unplug your USB devices and plug them back in so the rules take effect. You should now be able to run rexarm_driver without sudo.  The misc folder also contains a handy .gitconfig file that you can customize for your own purposes if you don't already have one.  Just update it with your name and email address and dump into your HOME dir.
 
 Note for Matlab.  If you are using LCM from Matlab, make sure openjdk-6 is selected by default.  You can check with the following commands:
 

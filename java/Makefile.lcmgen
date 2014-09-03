@@ -1,3 +1,5 @@
+include ../src/common.mk
+
 LCM = lcm-gen
 
 LCMTYPES_NAMES := $(shell cd ../lcmtypes && ls *.lcm)
@@ -6,7 +8,7 @@ LCMTYPES_NAMES := $(shell cd ../lcmtypes && ls *.lcm)
 LCMTYPES_JAVA := $(LCMTYPES_NAMES:%.lcm=%.java)
 LCMTYPES_JAVA := $(addprefix src/rob550/lcmtypes/,$(LCMTYPES_JAVA))
 
-LCMTYPES_JAR = lcmtypes.jar
+LCMTYPES_JAR = $(JAVA_PATH)/lcmtypes.jar
 
 BUILD_PATH = build
 
@@ -20,12 +22,11 @@ src/rob550/lcmtypes/%.java: ../lcmtypes/%.lcm
 	@$(LCM) -j --jpath=src --jdefaultpkg=rob550.lcmtypes $<
 
 $(LCMTYPES_JAR): | builddir
-	@echo "[$(LCMTYPES_JAR)]"
+	@echo "\t$(LCMTYPES_JAR)"
 	@javac -cp $(LCM_JAR) -d $(BUILD_PATH) $(LCMTYPES_JAVA)
 	@jar cf $(LCMTYPES_JAR) -C $(BUILD_PATH) .
 
 builddir:
-	@echo "[$(BUILD_PATH)]"
 	@mkdir -p $(BUILD_PATH)
 
 clean:

@@ -5,7 +5,7 @@ SUBDIRS =
 MAKEFLAGS += --no-print-directory
 
 all:
-	@echo [lcmtypes] ; $(MAKE) -f Makefile.lcmgen all || exit 2;
+	@echo "[lcmtypes]" ; $(MAKE) -f Makefile.lcmgen all || exit 2;
 
 clean:
-	@echo clean [lcmtypes] ; $(MAKE) -f Makefile.lcmgen clean || exit 2;
+	@echo "clean [lcmtypes]" ; $(MAKE) -f Makefile.lcmgen clean || exit 2;

@@ -15,11 +15,13 @@ CFLAGS_STD   := -std=gnu99 -g -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_REEN
 		-Wall -Wno-unused-parameter -Wno-format-zero-length -pthread -fPIC
 LDFLAGS_STD  := -lm -lpthread
 
-ROOT_PATH   := $(subst /src/common.mk,,$(realpath $(lastword $(MAKEFILE_LIST))))
+ROOT_PATH    := $(subst /src/common.mk,,$(realpath $(lastword $(MAKEFILE_LIST))))
 SRC_PATH     := $(ROOT_PATH)/src
 BIN_PATH     := $(ROOT_PATH)/bin
 LIB_PATH     := $(ROOT_PATH)/lib
+JAVA_PATH    := $(ROOT_PATH)/java
 MATLAB_PATH  := $(ROOT_PATH)/matlab
+SOLNS_PATH   := $(ROOT_PATH)/solns
 CONFIG_DIR   := $(shell pwd)/../../config
 
 CC           := gcc
@@ -135,7 +137,7 @@ CFLAGS_MATH  := -I$(SRC_PATH) $(CFLAGS_COMMON)
 LDFLAGS_MATH := -L$(LIB_PATH) -lmath $(LDFLAGS_COMMON)
 
 # lcmtypes
-CFLAGS_LCMTYPES  := -I$(SRC_PATH) $(CFLAGS_LCM)
+CFLAGS_LCMTYPES  := -I$(SRC_PATH) -I$(SOLNS_PATH)/src $(CFLAGS_LCM)
 LDFLAGS_LCMTYPES := -L$(LIB_PATH) -llcmtypes $(LDFLAGS_LCM)
 
 # imagesource

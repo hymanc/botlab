@@ -128,6 +128,10 @@ endif
 #
 ############################################################
 
+# handy makefile function for determining our internal library dependencies based upon LDFLAGS:
+# LIBDEPS=$(call libdeps, $(LDFLAGS))
+libdeps = $(filter $(wildcard $(LIB_PATH)/*.a), $(patsubst -l%, $(LIB_PATH)/lib%.a, $(sort $(filter -l%, $(1)))))
+
 # common
 CFLAGS_COMMON  := -I$(SRC_PATH) -DCONFIG_DIR='"$(CONFIG_DIR)"' $(CFLAGS_STD)
 LDFLAGS_COMMON := -L$(LIB_PATH) -lcommon $(LDFLAGS_STD)

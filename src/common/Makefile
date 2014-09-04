@@ -2,6 +2,7 @@ include ../common.mk
 
 CFLAGS  = $(CFLAGS_STD)  $(CFLAGS_GLIB)  $(CFLAGS_GTK) -O4 -DNDEBUG
 LDFLAGS = $(LDFLAGS_STD) $(LDFLAGS_GLIB) $(LDFLAGS_GTK)
+LIBDEPS = $(call libdeps, $(LDFLAGS))
 
 LIB_COMMON = $(LIB_PATH)/libcommon.a
 LIBCOMMON_OBJS = \
@@ -26,7 +27,7 @@ LIBCOMMON_OBJS = \
 
 all: $(LIB_COMMON)
 
-$(LIB_COMMON): $(LIBCOMMON_OBJS)
+$(LIB_COMMON): $(LIBCOMMON_OBJS) $(LIBDEPS)
 	@echo "\t$@"
 	@ar rc $@ $^
 

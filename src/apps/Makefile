@@ -16,6 +16,8 @@ LDFLAGS = $(LDFLAGS_STD) \
 	  $(LDFLAGS_COMMON) \
 	  $(LDFLAGS_LCMTYPES)
 
+LIBDEPS = $(call libdeps, $(LDFLAGS))
+
 LIB_ROB550 = $(LIB_PATH)/librob550.a
 LIBROB550_OBJS = rob550_util.o
 
@@ -27,19 +29,19 @@ ALL = $(LIB_ROB550) $(BIN_ROB550_EXAMPLE) # $(BIN_ROB550_MAEBOT_EXAMPLE) $(BIN_R
 
 all: $(ALL)
 
-$(LIB_ROB550): $(LIBROB550_OBJS)
+$(LIB_ROB550): $(LIBROB550_OBJS) $(LIBDEPS)
 	@echo "\t$@"
 	@ar rc $@ $(LIBROB550_OBJS)
 
-$(BIN_ROB550_EXAMPLE): rob550_example.o $(LIB_ROB550)
+$(BIN_ROB550_EXAMPLE): rob550_example.o $(LIB_ROB550) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_ROB550_MAEBOT_EXAMPLE): maebot_example.o $(LIB_ROB550)
+$(BIN_ROB550_MAEBOT_EXAMPLE): maebot_example.o $(LIB_ROB550) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_ROB550_MAEBOT_VIDEO_TELOP): maebot_video_teleop.o $(LIB_ROB550)
+$(BIN_ROB550_MAEBOT_VIDEO_TELOP): maebot_video_teleop.o $(LIB_ROB550) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 

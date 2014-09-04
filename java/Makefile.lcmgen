@@ -30,4 +30,5 @@ builddir:
 	@mkdir -p $(BUILD_PATH)
 
 clean:
-	@rm -rf *~ src/rob550/lcmtypes/* build/* $(LCMTYPES_JAR)
+	@rm -f *~
+	@rm -rf build/* $(LCMTYPES_JAVA) $(LCMTYPES_JAR)

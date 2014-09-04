@@ -2,6 +2,7 @@ include ../common.mk
 
 CFLAGS =   $(CFLAGS_STD)  $(CFLAGS_COMMON)  $(CFLAGS_GTK)  $(CFLAGS_USB)  $(CFLAGS_PNG)  $(CFLAGS_DC1394)
 LDFLAGS = $(LDFLAGS_STD) $(LDFLAGS_COMMON) $(LDFLAGS_GTK) $(LDFLAGS_USB) $(LDFLAGS_PNG) $(LDFLAGS_DC1394)
+LIBDEPS = $(call libdeps, $(LDFLAGS))
 
 LIB_IMAGESOURCE = $(LIB_PATH)/libimagesource.a
 LIBIMAGESOURCE_OBJS = \
@@ -28,19 +29,19 @@ ALL = $(LIB_IMAGESOURCE) $(BIN_ISVIEW) $(BIN_ISTEST) $(BIN_TCPSTREAM)
 
 all: $(ALL)
 
-$(LIB_IMAGESOURCE): $(LIBIMAGESOURCE_OBJS)
+$(LIB_IMAGESOURCE): $(LIBIMAGESOURCE_OBJS) $(LIBDEPS)
 	@echo "\t$@"
 	@ar rc $@ $^
 
-$(BIN_ISVIEW): isview.o $(LIB_IMAGESOURCE)
+$(BIN_ISVIEW): isview.o $(LIB_IMAGESOURCE) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_ISTEST): istest.o $(LIB_IMAGESOURCE)
+$(BIN_ISTEST): istest.o $(LIB_IMAGESOURCE) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_TCPSTREAM): tcp_image_streamer.o $(LIB_IMAGESOURCE)
+$(BIN_TCPSTREAM): tcp_image_streamer.o $(LIB_IMAGESOURCE) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 

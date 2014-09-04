@@ -2,6 +2,7 @@ include ../../common.mk
 
 CFLAGS  =  $(CFLAGS_STD)  $(CFLAGS_MATH)  $(CFLAGS_COMMON)  $(CFLAGS_GSL) -DNDEBUG -Wno-unused-but-set-variable
 LDFLAGS = $(LDFLAGS_STD) $(LDFLAGS_MATH) $(LDFLAGS_COMMON) $(LDFLAGS_GSL)
+LIBDEPS = $(call libdeps, $(LDFLAGS))
 
 BIN_GSLU_DEMO = gslu_demo
 BIN_FASTTRIG_DEMO = fasttrig_demo
@@ -14,27 +15,27 @@ ALL = $(BIN_GSLU_DEMO) $(BIN_FASTTRIG_DEMO) $(BIN_SO3_DEMO) $(BIN_SSC_DEMO) $(BI
 
 all: $(ALL)
 
-$(BIN_GSLU_DEMO): gslu_demo.o
+$(BIN_GSLU_DEMO): gslu_demo.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_FASTTRIG_DEMO): fasttrig_demo.o
+$(BIN_FASTTRIG_DEMO): fasttrig_demo.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_SO3_DEMO): so3_demo.o
+$(BIN_SO3_DEMO): so3_demo.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_SSC_DEMO): ssc_demo.o
+$(BIN_SSC_DEMO): ssc_demo.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_HOMOGENOUS_DEMO): homogenous_demo.o
+$(BIN_HOMOGENOUS_DEMO): homogenous_demo.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_PLANE_DEMO): plane_demo.o
+$(BIN_PLANE_DEMO): plane_demo.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 

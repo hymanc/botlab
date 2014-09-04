@@ -3,6 +3,7 @@ include ../common.mk
 CFLAGS =   $(CFLAGS_STD)  $(CFLAGS_IMAGESOURCE)  $(CFLAGS_MATH)  $(CFLAGS_COMMON) \
 	   `pkg-config --cflags freetype2` -pedantic -O2
 LDFLAGS = $(LDFLAGS_STD) $(LDFLAGS_IMAGESOURCE) $(LDFLAGS_MATH) $(LDFLAGS_COMMON)
+LIBDEPS = $(call libdeps, $(LDFLAGS))
 
 LIB_VX = $(LIB_PATH)/libvx.a
 LIBVX_DRAWABLE_OBJS = \
@@ -65,11 +66,11 @@ ALL = $(LIB_VX) $(LIB_VXGL) vx_make_font
 
 all: $(ALL) fonts
 
-$(LIB_VX): $(LIBVX_OBJS)
+$(LIB_VX): $(LIBVX_OBJS) $(LIBDEPS)
 	@echo "\t$@"
 	@ar rc $@ $^
 
-$(LIB_VXGL): $(LIBVXGL_OBJS)
+$(LIB_VXGL): $(LIBVXGL_OBJS) $(LIBDEPS)
 	@echo "\t$@"
 	@ar rc $@ $^
 

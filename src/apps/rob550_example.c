@@ -156,7 +156,7 @@ animate_thread (void *data)
                     const double scale = 2./im->width;
                     vx_buffer_add_back (vx_world_get_buffer (state->vxworld, "image"),
                                         vxo_chain (vxo_mat_scale3 (scale, scale, 1.0),
-                                                   vxo_mat_translate3 (-im->width/2, -im->height/2, 0),
+                                                   vxo_mat_translate3 (-im->width/2., -im->height/2., 0.),
                                                    vim));
                     vx_buffer_swap (vx_world_get_buffer (state->vxworld, "image"));
                     image_u32_destroy (im);
@@ -167,14 +167,14 @@ animate_thread (void *data)
         }
 
         // Example rendering of vx primitives
-        double rad = (vx_util_mtime () % 5000) * 2 * M_PI / 5e3;   // [ 0, 2PI]
-        double osc = ((vx_util_mtime () % 5000) / 5e3) * 2 - 1;    // [-1, 1]
+        double rad = (vx_util_mtime () % 5000) * 2. * M_PI / 5e3;   // [ 0, 2PI]
+        double osc = ((vx_util_mtime () % 5000) / 5e3) * 2. - 1;    // [-1, 1]
 
         // Creates a blue box and applies a series of rigid body transformations
         // to it. A vxo_chain applies its arguments sequentially. In this case,
         // then, we rotate our coordinate frame by rad radians, as determined
         // by the current time above. Then, the origin of our coordinate frame
-        // is translated 0 meters along its X-axis and 1.5 meters along its
+        // is translated 0 meters along its X-axis and 0.5 meters along its
         // Y-axis. Finally, a 0.1 x 0.1 x 0.1 cube (or box) is rendered centered at the
         // origin, and is rendered with the blue mesh style, meaning it has
         // solid, blue sides.

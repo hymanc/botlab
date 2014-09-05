@@ -209,6 +209,19 @@ generic_widget_changed (GtkWidget *w, gpointer user_data)
     zarray_destroy (keys);
 }
 
+void
+pg_notify_listeners (parameter_gui_t *pg, const char *key)
+{
+    // Notify listeners of change
+    zarray_t *keys = zhash_keys (pg->listeners);
+    for (int i = 0; i < zarray_size (keys); i++) {
+        parameter_listener_t *pl;
+        zarray_get (keys, i, &pl);
+        pl->param_changed (pl, pg, key);
+    }
+    zarray_destroy (keys);
+}
+
 static param_data_t *
 add_row (parameter_gui_t *pg, const char *name, const char *desc,
          GtkWidget *w, const char *signal_name, GType data_type)
@@ -317,8 +330,8 @@ pg_sd_boxes (parameter_gui_t *pg, const char *name, double value)
 
 
 int
-pg_add_double_slider(parameter_gui_t *pg, const char *name, const char *desc,
-                     double min, double max, double var)
+pg_add_double_slider (parameter_gui_t *pg, const char *name, const char *desc,
+                      double min, double max, double var)
 {
     ParameterGUI *gtkpg = GTK_PARAM_GUI (pg->paramWidget);
 
@@ -345,8 +358,8 @@ pg_add_double_slider(parameter_gui_t *pg, const char *name, const char *desc,
 }
 
 int
-pg_add_int_slider(parameter_gui_t *pg, const char *name, const char * desc,
-                  int min, int max, int var)
+pg_add_int_slider (parameter_gui_t *pg, const char *name, const char * desc,
+                   int min, int max, int var)
 {
     ParameterGUI *gtkpg = GTK_PARAM_GUI (pg->paramWidget);
 
@@ -398,8 +411,8 @@ add_checkboxes_helper (parameter_gui_t *pg, GtkBox *box,
 }
 
 int
-pg_add_check_boxes(parameter_gui_t *pg, const char *name, const char *desc,
-                   int is_checked, ...)
+pg_add_check_boxes (parameter_gui_t *pg, const char *name, const char *desc,
+                    int is_checked, ...)
 {
     ParameterGUI *gtkpg = GTK_PARAM_GUI (pg->paramWidget);
 
@@ -488,7 +501,7 @@ pg_add_buttons (parameter_gui_t *pg, const char *name, const char *desc, ...)
 static double
 gtk_param_gui_get_double (ParameterGUI *pg, const char *name)
 {
-    if(!have_parameter_key(pg, name)) {
+    if(!have_parameter_key (pg, name)) {
         fprintf (stderr, "param_widget: invalid parameter [%s]\n", name);
         return 0;
     }
@@ -507,8 +520,15 @@ pg_gd (parameter_gui_t *pg, const char *name)
 void
 pg_sd (parameter_gui_t *pg, const char *name, double value)
 {
-    ERROR ("error: pg_sd() unimplemented\n");
+    if(!have_parameter_key (pg->paramWidget, name)) {
+        fprintf (stderr, "param_widget: invalid parameter [%s]\n", name);
+        return;
+    }
+
+    GtkRange *w = GTK_RANGE (g_hash_table_lookup (pg->paramWidget->params, name));
+    gtk_range_set_value (w, value);
 }
+
 
 static int
 gtk_param_gui_get_int (ParameterGUI *pg, const char *name)
@@ -518,7 +538,7 @@ gtk_param_gui_get_int (ParameterGUI *pg, const char *name)
         return 0;
     }
 
-    GtkWidget *w = g_hash_table_lookup(pg->params, name);
+    GtkWidget *w = g_hash_table_lookup (pg->params, name);
     return (int)gtk_range_get_value (GTK_RANGE (w));
 }
 
@@ -532,7 +552,13 @@ pg_gi (parameter_gui_t *pg, const char *name)
 void
 pg_si (parameter_gui_t *pg, const char *name, int value)
 {
-    ERROR ("error: pg_si() unimplemented\n");
+    if(!have_parameter_key (pg->paramWidget, name)) {
+        fprintf (stderr, "param_widget: invalid parameter [%s]\n", name);
+        return;
+    }
+
+    GtkRange *w = GTK_RANGE (g_hash_table_lookup (pg->paramWidget->params, name));
+    gtk_range_set_value (w, value);
 }
 
 static int
@@ -557,7 +583,13 @@ pg_gb (parameter_gui_t *pg, const char *name)
 void
 pg_sb (parameter_gui_t *pg, const char *name, int value)
 {
-    ERROR ("error: pg_sb() unimplemented\n");
+    if (!have_parameter_key (pg->paramWidget, name)) {
+        fprintf (stderr, "param_widget: invalid parameter [%s]\n", name);
+        return;
+    }
+
+    GtkWidget *w = g_hash_table_lookup (pg->paramWidget->params, name);
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (w), value);
 }
 
 

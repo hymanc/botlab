@@ -16,11 +16,8 @@ struct parameter_listener {
     void (*param_changed)(parameter_listener_t *listener, parameter_gui_t *pg, const char *keyname);
 };
 
-
-// This is a pretty hacked together parameter gui implementation
-// which is missing many of the features of ParameterGUI.java,
-// but is a first attempt to make an API that is concise enough for
-// inline use
+// NOTE: all set functions must currently be called with the GTK mutex
+// locked. The intent is to remove this requirement eventually
 
 parameter_gui_t *
 pg_create (void);
@@ -30,8 +27,12 @@ pg_destroy (parameter_gui_t *pg);
 
 void
 pg_add_listener (parameter_gui_t *pg, parameter_listener_t *listener);
+
 void
 pg_remove_listener (parameter_gui_t *pg, parameter_listener_t *listener);
+
+void
+pg_notify_listeners (parameter_gui_t *pg, const char *key);
 
 GtkWidget *
 pg_get_widget (parameter_gui_t *pg);
@@ -39,8 +40,10 @@ pg_get_widget (parameter_gui_t *pg);
 int
 pg_add_double_boxes (parameter_gui_t *pg, const char *name, const char *desc,
                      double initial_value, ...) __attribute__((sentinel));
+
 double
 pg_gd_boxes (parameter_gui_t *pg, const char *name);
+
 void
 pg_sd_boxes (parameter_gui_t *pg, const char *name, double value);
 
@@ -57,11 +60,10 @@ pg_add_int_slider (parameter_gui_t *pg, const char *name, const char *desc,
 // WARNING: you must be sure to provide the correct number of arguments
 // (must be 0 mod 3 + 1 including NULL), or you will get a segfault or hang
 int
-pg_add_check_boxes (parameter_gui_t *pg, const char *name, const char *desc,
-                    int is_checked, ...) __attribute__((sentinel));
+pg_add_check_boxes (parameter_gui_t *pg, const char *name, const char *desc, int is_checked, ...) __attribute__((sentinel));
+
 int
-pg_add_buttons (parameter_gui_t *pg, const char *name, const char *desc,
-                ...) __attribute__((sentinel));
+pg_add_buttons (parameter_gui_t *pg, const char *name, const char *desc, ...) __attribute__((sentinel));
 
 // Get Double
 double

@@ -1,10 +1,14 @@
-function sl = lcmrecv_dynamixel_status_list_t(varargin)
+function [sl, status_list] = lcmrecv_dynamixel_status_list_t(varargin)
 %LCMRECV_DYNAMIXEL_STATUS_LIST_T  Listens for a dynamixel_status_list_t from LCM.
 %   STATUS_LIST = LCMRECV_DYNAMIXEL_STATUS_LIST_T() listens on channel 'ARM_STATUS'
 %   and returns a dynamixel_command_list_t upon success.
 %
 %   STATUS_LIST = LCMRECV_DYNAMIXEL_STATUS_LIST_T(CHANNEL, TIMEOUT) listens on
 %   channel CHANNEL and times out after TIMEOUT as measured in milliseconds.
+%
+%  [STATUS_LIST, STATUS_LIST_JAVA] = LCMRECV(...) additionally returns the
+%  actual Java LCM object.
+
 
 channel = 'ARM_STATUS';
 switch nargin
@@ -55,4 +59,10 @@ for k=1:status_list.len
     sl.load(k) = status_list.statuses(k).load;
     sl.voltage(k) = status_list.statuses(k).voltage;
     sl.temperature(k) = status_list.statuses(k).temperature;
+    if k == 1
+        sl.ERROR_VOLTAGE = status_list.statuses(k).ERROR_VOLTAGE;
+        sl.ERROR_ANGLE_LIMIT = status_list.statuses(k).ERROR_ANGLE_LIMIT;
+        sl.ERROR_OVERHEAT = status_list.statuses(k).ERROR_OVERHEAT;
+        sl.ERROR_OVERLOAD = status_list.statuses(k).ERROR_OVERLOAD;
+    end
 end

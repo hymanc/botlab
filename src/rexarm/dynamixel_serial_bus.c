@@ -71,7 +71,7 @@ send_command_raw(dynamixel_bus_t *bus,
             return NULL;
 
         assert (res <= (4 - header_have));
-        assert (res + header_have == 4);
+        //assert (res + header_have == 4);
 
         // If the first two bytes are the sync bytes, we're done
         if ((header->buf[0] & 0xff) == 0xff && (header->buf[1] & 0xff) == 0xff)

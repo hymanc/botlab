@@ -4,8 +4,7 @@ function sl = lcmrecv_dynamixel_status_list_t(varargin)
 %   and returns a dynamixel_command_list_t upon success.
 %
 %   STATUS_LIST = LCMRECV_DYNAMIXEL_STATUS_LIST_T(CHANNEL, TIMEOUT) listens on
-%   channel CHANNEL instead and times out after TIMEOUT as measured in
-%   milliseconds.
+%   channel CHANNEL and times out after TIMEOUT as measured in milliseconds.
 
 channel = 'ARM_STATUS';
 switch nargin

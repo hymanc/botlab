@@ -63,7 +63,7 @@ arm_state_create (const char *busname, const int baud, const int num_servos)
                     id);
         }
         else {
-            printf ("Could not find servo id = %d\n", id);
+            printf ("Could not find servo id = %d, check power\n", id);
             exit (-1);
         }
     }

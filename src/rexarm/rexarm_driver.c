@@ -51,7 +51,7 @@ arm_state_create (const char *busname, const int baud, const int num_servos)
 {
     arm_state_t *arm_state = calloc (1, sizeof (*arm_state));
     arm_state->bus = serial_bus_create (busname, baud);
-    arm_state->servos = calloc (num_servos, sizeof (dynamixel_device_t *));
+    arm_state->servos = calloc (num_servos, sizeof (*arm_state->servos));
     arm_state->num_servos = num_servos;
 
     // Create the servos
@@ -59,12 +59,11 @@ arm_state_create (const char *busname, const int baud, const int num_servos)
         arm_state->servos[id] = arm_state->bus->get_servo (arm_state->bus, id);
         if (arm_state->servos[id] != NULL) {
             printf ("Found %s servo id = %d\n",
-                    arm_state->servos[id]->get_name (arm_state->servos[id]),
-                    id);
+                    arm_state->servos[id]->get_name (arm_state->servos[id]), id);
         }
         else {
             printf ("Could not find servo id = %d, check power\n", id);
-            exit (-1);
+            exit (EXIT_FAILURE);
         }
     }
 

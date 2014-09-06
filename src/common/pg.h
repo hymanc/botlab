@@ -16,7 +16,7 @@ struct parameter_listener {
     void (*param_changed)(parameter_listener_t *listener, parameter_gui_t *pg, const char *keyname);
 };
 
-// NOTE: all set functions must currently be called with the GTK mutex
+// NOTE: all 'set' functions must currently be called with the GTK mutex
 // locked. The intent is to remove this requirement eventually
 
 parameter_gui_t *

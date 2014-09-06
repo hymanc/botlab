@@ -300,7 +300,7 @@ pg_add_double_boxes (parameter_gui_t *pg, const char *name, const char *desc,
             return -1;
 
         name = va_arg (va, const char *);
-        if (name == NULL || strlen(name) == 0)
+        if (name == NULL || strlen (name) == 0)
             break; // all done
 
         desc = va_arg (va, const char *);
@@ -427,7 +427,7 @@ pg_add_check_boxes (parameter_gui_t *pg, const char *name, const char *desc,
             return -1;
 
         name = va_arg (va, const char *);
-        if(name == NULL || strlen(name) == 0)
+        if(name == NULL || strlen (name) == 0)
             break; // all done
 
         desc = va_arg (va, const char *);
@@ -485,7 +485,7 @@ pg_add_buttons (parameter_gui_t *pg, const char *name, const char *desc, ...)
             return -1;
 
         name = va_arg (va, const char *);
-        if (name == NULL || strlen(name) == 0)
+        if (name == NULL || strlen (name) == 0)
             break; // all done
 
         desc = va_arg (va, const char *);

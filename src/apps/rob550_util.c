@@ -90,6 +90,10 @@ rob550_init (int argc, char *argv[])
     // on newer GTK systems, this might generate an error/warning
     g_type_init ();
 
+    // Secure glib
+    if (!g_thread_supported ())
+        g_thread_init (NULL);
+
     // Initialize GTK
     gdk_threads_init ();
     gdk_threads_enter ();

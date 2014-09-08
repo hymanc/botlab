@@ -37,6 +37,8 @@ pg_notify_listeners (parameter_gui_t *pg, const char *key);
 GtkWidget *
 pg_get_widget (parameter_gui_t *pg);
 
+// Warning, you must explicitly cast to a type double if initial_value is not of type double (e.g., int).
+// This is b/c pg_add_double_boxes() relies on va_args to parse and assumes type double.
 int
 pg_add_double_boxes (parameter_gui_t *pg, const char *name, const char *desc,
                      double initial_value, ...) __attribute__((sentinel));

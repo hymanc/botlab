@@ -13,7 +13,6 @@ DYNAMIXEL_OBJS = \
 
 BIN_DYNAMIXEL_TEST = $(BIN_PATH)/dynamixel_test
 BIN_REXARM_DRIVER = $(BIN_PATH)/rexarm_driver
-BIN_REXARM_EXAMPLE = $(BIN_PATH)/rexarm_example
 
 ALL = $(BIN_DYNAMIXEL_TEST) $(BIN_REXARM_DRIVER) $(BIN_REXARM_EXAMPLE)
 
@@ -24,10 +23,6 @@ $(BIN_DYNAMIXEL_TEST): dynamixel_test.o $(DYNAMIXEL_OBJS) $(LIBDEPS)
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
 $(BIN_REXARM_DRIVER): rexarm_driver.o $(DYNAMIXEL_OBJS) $(LIBDEPS)
-	@echo "\t$@"
-	@$(CC) -o $@ $^ $(LDFLAGS)
-
-$(BIN_REXARM_EXAMPLE): rexarm_example.o $(DYNAMIXEL_OBJS) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 

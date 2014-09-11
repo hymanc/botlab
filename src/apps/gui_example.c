@@ -82,7 +82,15 @@ mouse_event (vx_event_handler_t *vxeh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_
 
     if ((mouse->button_mask & VX_BUTTON1_MASK) &&
         !(state->last_mouse_event.button_mask & VX_BUTTON1_MASK)) {
-        printf ("Mouse clicked at coords: [%3f, %3f]\n", mouse->x, mouse->y);
+
+        vx_ray3_t ray;
+        vx_camera_pos_compute_ray (pos, mouse->x, mouse->y, &ray);
+
+        double ground[3];
+        vx_ray3_intersect_xy (&ray, 0, ground);
+
+        printf ("Mouse clicked at coords: [%8.3f, %8.3f]  Ground clicked at coords: [%6.3f, %6.3f]\n",
+                mouse->x, mouse->y, ground[0], ground[1]);
     }
 
     // store previous mouse event to see if the user *just* clicked or released

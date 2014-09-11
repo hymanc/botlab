@@ -18,9 +18,6 @@
 #include "common/timestamp.h"
 #include "math/math_util.h"
 
-#include "dynamixel_device.h"
-#include "dynamixel_serial_bus.h"
-
 #define NUM_SERVOS 4
 
 typedef struct state state_t;
@@ -47,9 +44,9 @@ status_handler (const lcm_recv_buf_t *rbuf,
     // Print out servo positions
     for (int id = 0; id < msg->len; id++) {
         dynamixel_status_t stat = msg->statuses[id];
-        printf("[id %02d]=%3.3f ",id, stat.position_radians);
+        printf ("[id %d]=%6.3f ",id, stat.position_radians);
     }
-    printf("\n");
+    printf ("\n");
 }
 
 void *
@@ -60,7 +57,7 @@ status_loop (void *data)
                                        state->status_channel,
                                        status_handler,
                                        state);
-    int hz = 15;
+    const int hz = 15;
     while (1) {
         // Set up the LCM file descriptor for waiting. This lets us monitor it
         // until something is "ready" to happen. In this case, we are ready to
@@ -89,7 +86,7 @@ command_loop (void *user)
         // Send LCM commands to arm. Normally, you would update positions, etc,
         // but here, we will just home the arm.
         for (int id = 0; id < NUM_SERVOS; id++) {
-            if (getopt_get_bool(state->gopt, "idle")) {
+            if (getopt_get_bool (state->gopt, "idle")) {
                 cmds.commands[id].utime = utime_now ();
                 cmds.commands[id].position_radians = 0.0;
                 cmds.commands[id].speed = 0.0;
@@ -99,8 +96,8 @@ command_loop (void *user)
                 // home servos slowly
                 cmds.commands[id].utime = utime_now ();
                 cmds.commands[id].position_radians = 0.0;
-                cmds.commands[id].speed = 0.1;
-                cmds.commands[id].max_torque = 0.25;
+                cmds.commands[id].speed = 0.05;
+                cmds.commands[id].max_torque = 0.35;
             }
         }
         dynamixel_command_list_t_publish (state->lcm, state->command_channel, &cmds);
@@ -117,20 +114,20 @@ command_loop (void *user)
 // state in the terminal. It also sends messages to the arm ordering it to the
 // "home" position (all servos at 0 radians).
 int
-main(int argc, char *argv[])
+main (int argc, char *argv[])
 {
-    getopt_t *gopt = getopt_create();
-    getopt_add_bool(gopt, 'h', "help", 0, "Show this help screen");
-    getopt_add_bool(gopt, 'i', "idle", 0, "Command all servos to idle");
-    getopt_add_string(gopt, '\0', "status-channel", "ARM_STATUS", "LCM status channel");
-    getopt_add_string(gopt, '\0', "command-channel", "ARM_COMMAND", "LCM command channel");
+    getopt_t *gopt = getopt_create ();
+    getopt_add_bool (gopt, 'h', "help", 0, "Show this help screen");
+    getopt_add_bool (gopt, 'i', "idle", 0, "Command all servos to idle");
+    getopt_add_string (gopt, '\0', "status-channel", "ARM_STATUS", "LCM status channel");
+    getopt_add_string (gopt, '\0', "command-channel", "ARM_COMMAND", "LCM command channel");
 
-    if (!getopt_parse(gopt, argc, argv, 1) || getopt_get_bool(gopt, "help")) {
-        getopt_do_usage(gopt);
-        exit(-1);
+    if (!getopt_parse (gopt, argc, argv, 1) || getopt_get_bool (gopt, "help")) {
+        getopt_do_usage (gopt);
+        exit (EXIT_FAILURE);
     }
 
-    state_t *state = malloc (sizeof(*state));
+    state_t *state = calloc (1, sizeof(*state));
     state->gopt = gopt;
     state->lcm = lcm_create (NULL);
     state->command_channel = getopt_get_string (gopt, "command-channel");

@@ -26,10 +26,10 @@ if s
 end
 
 pcode(targetdir,'-INPLACE');
-strip_mfiles(targetdir);
+strip_mfiles(targetdir, ignore);
 
 %===============================================================================
-function strip_mfiles(targetdir)
+function strip_mfiles(targetdir, ignore)
 
 d = dir(targetdir);
 for f=1:length(d)
@@ -40,6 +40,24 @@ for f=1:length(d)
             strip_mfiles(fullfile(targetdir, d(f).name));
             continue;
         end
+    end
+
+    skip = 0;
+    for r=1:length(ignore)
+        if regexp(d(f).name, ignore{r})
+            fprintf('skipping %s, matches regexp %s\n', ...
+                    d(f).name, ignore{r});
+            [pathstr, name, ext] = fileparts(d(f).name);
+            delete(fullfile(targetdir, d(f).name));
+            if strcmpi(ext, '.m')
+                delete(fullfile(targetdir, [name,'.p']));
+            end
+            skip = 1;
+            break;
+        end
+    end
+    if skip
+        continue;
     end
 
     [pathstr, name, ext, versn] = fileparts(d(f).name);
@@ -81,7 +99,7 @@ for f=1:length(d)
         end
         fclose(fid);
 
-        % write just the help text to m-file
+        % overwrite the m-file with just its help text
         if done
             fid = fopen(mfile, 'w+');
             for t=1:length(thelp)

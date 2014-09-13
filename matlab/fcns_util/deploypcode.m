@@ -42,11 +42,13 @@ for f=1:length(d)
         end
     end
 
+
     skip = 0;
     for r=1:length(ignore)
         if regexp(d(f).name, ignore{r})
             fprintf('skipping %s, matches regexp %s\n', ...
                     d(f).name, ignore{r});
+
             [pathstr, name, ext] = fileparts(d(f).name);
             delete(fullfile(targetdir, d(f).name));
             if strcmpi(ext, '.m')

@@ -26,10 +26,10 @@ if s
 end
 
 pcode(targetdir,'-INPLACE');
-strip_mfiles(targetdir);
+strip_mfiles(targetdir, ignore);
 
 %===============================================================================
-function strip_mfiles(targetdir)
+function strip_mfiles(targetdir, ignore)
 
 d = dir(targetdir);
 for f=1:length(d)
@@ -38,6 +38,14 @@ for f=1:length(d)
             continue;
         else
             strip_mfiles(fullfile(targetdir, d(f).name));
+            continue;
+        end
+    end
+
+    for r=1:length(ignore)
+        if regexp(d(f).name, ignore{r})
+            fprintf('skipping %s, matches regexp %s\n', ...
+                    d(f).name, ignore{r});
             continue;
         end
     end
@@ -81,7 +89,7 @@ for f=1:length(d)
         end
         fclose(fid);
 
-        % write just the help text to m-file
+        % overwrite the m-file with just its help text
         if done
             fid = fopen(mfile, 'w+');
             for t=1:length(thelp)

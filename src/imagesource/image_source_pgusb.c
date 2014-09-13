@@ -91,7 +91,7 @@ struct impl_pgusb {
 
     int nformats;
     struct format *formats;
-    int                   current_format_idx;
+    int current_format_idx;
 
     // must add CONFIG_ROM_BASE to each of these.
     uint32_t unit_directory_offset;

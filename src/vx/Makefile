@@ -76,10 +76,11 @@ $(LIB_VXGL): $(LIBVXGL_OBJS) $(LIBDEPS)
 
 # Delete the font directory to pull again
 fonts:
-	curl http://robots.engin.umich.edu/rob550/vx_fonts_1.0.tar.gz > /tmp/vx_fonts_1.0.tar.gz
-	tar -xf /tmp/vx_fonts_1.0.tar.gz
-	if [ -d fonts ]; then mv fonts /tmp/old_vx_fonts; fi
+	curl http://robots.engin.umich.edu/rob550/vx_fonts_1.0.tar.gz > vx_fonts_1.0.tar.gz
+	tar -xf vx_fonts_1.0.tar.gz
+	if [ -d fonts ]; then mv fonts old_vx_fonts; fi
 	mv vx_fonts fonts
+	touch fonts
 
 vx_make_font: vx_make_font.o
 	@echo "\t$@"

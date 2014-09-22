@@ -13,7 +13,7 @@
  * @defgroup PerlsMathGsluMatrix GSL Util Matrix
  * @brief GSL utility for matrices.
  * @ingroup PerlsMath
- * 
+ *
  * @{
  */
 
@@ -57,15 +57,15 @@ extern "C" {
 
 /*==============================MATRIX====================================*/
 
-/** 
+/**
  * prints the contents of a matrix to stdout.  each element is formatted
- * using the printf-style format specifier fmt.  
+ * using the printf-style format specifier fmt.
  *
  * @param fmt if it is NULL, then it defaults to "%f"
  * @param trans one of either CblasNoTrans, CblasTrans, CblasConjTrans
  */
 void
-gslu_matrix_printfc (const gsl_matrix *m, const char *name, 
+gslu_matrix_printfc (const gsl_matrix *m, const char *name,
                      const char *fmt, CBLAS_TRANSPOSE_t trans);
 
 /**
@@ -97,9 +97,9 @@ gslu_matrix_float_free (gsl_matrix_float *A)
         gsl_matrix_float_free (A);
 }
 
-/** 
+/**
  * clones a matrix
- * 
+ *
  * @param A matrix to be cloned
  * @return clone of A
  */
@@ -111,7 +111,7 @@ gslu_matrix_clone (const gsl_matrix *A)
     return B;
 }
 
-/** 
+/**
  * select a subset of rows of matrix A according to index p
  *
  * @param A original matrix
@@ -176,13 +176,13 @@ gslu_matrix_selcol_alloc (const gsl_matrix *A, const gslu_index *isel)
 /**
  * @return 1 if matrices A and B have the same size
  */
-static inline int 
-gslu_matrix_is_same_size (const gsl_matrix *A, const gsl_matrix *B) 
+static inline int
+gslu_matrix_is_same_size (const gsl_matrix *A, const gsl_matrix *B)
 {
     return A->size1 == B->size1 && A->size2 == B->size2;
 }
 
-/** 
+/**
  * @return 1 if matrix A is square in size
  */
 static inline int
@@ -192,23 +192,25 @@ gslu_matrix_is_square (const gsl_matrix *A)
 }
 
 /**
- * @return 1 if all elements of A and B are exactly the same
+ * @return 1 if all elements of A and B are the same to within epsilon
  */
 static inline int
-gslu_matrix_is_equal (const gsl_matrix *A, const gsl_matrix *B)
+gslu_matrix_is_equal (const gsl_matrix *A, const gsl_matrix *B, const double epsilon)
 {
     assert (A->size1 == B->size1 && A->size2 == B->size2);
     for (size_t i=0; i<A->size1; i++) {
         for (size_t j=0; j<A->size2; j++) {
-            const double epsilon = gsl_matrix_get (A, i, j) - gsl_matrix_get (B, i, j);
-            if (fabs (epsilon) > 1e-14)
+            double delta = gsl_matrix_get (A, i, j) - gsl_matrix_get (B, i, j);
+            if (fabs (delta) > epsilon) {
+                printf ("epsilon=%.15f\n", epsilon);
                 return 0;
+            }
         }
     }
     return 1;
 }
 
-/** 
+/**
  * @return number of elements in matrix
  */
 static inline size_t
@@ -244,7 +246,7 @@ gslu_matrix_mdiag_alloc (const gsl_matrix *A, const gsl_matrix *B)
     return ABDiag;
 }
 
-/** 
+/**
  * copies vector b into a column j of matrix A
  */
 static inline int
@@ -283,7 +285,7 @@ gslu_matrix_transpose_alloc (const gsl_matrix *A)
 double
 gslu_matrix_det (const gsl_matrix *A);
 
-/** 
+/**
  * Get trace of matrix A
  * @return tr(A)
  */
@@ -334,7 +336,7 @@ gslu_matrix_spdinv_alloc (const gsl_matrix *A)
     gslu_matrix_spdinv (Ainv, A);
     return Ainv;
 }
-        
+
 /**
  * reshapes matrix A into matrix B:
  * taken in column order if TransA = CblasNoTrans
@@ -343,7 +345,7 @@ gslu_matrix_spdinv_alloc (const gsl_matrix *A)
 int
 gslu_matrix_reshape (gsl_matrix *B, const gsl_matrix *A, CBLAS_TRANSPOSE_t TransA);
 
-/** 
+/**
  * stacks matrix A into a column vector:
  * taken in column order if TransA = CblasNoTrans
  * taken in row order if TransA = CblasTrans
@@ -364,13 +366,13 @@ gslu_matrix_skewsym (gsl_matrix *S, const gsl_vector *s)
     double s1 = gsl_vector_get (s, 0);
     double s2 = gsl_vector_get (s, 1);
     double s3 = gsl_vector_get (s, 2);
-    
+
     gsl_matrix_set (S, 0, 0, 0.0);  gsl_matrix_set (S, 0, 1, -s3);   gsl_matrix_set (S, 0, 2,  s2);
     gsl_matrix_set (S, 1, 0,  s3);  gsl_matrix_set (S, 1, 1, 0.0);   gsl_matrix_set (S, 1, 2, -s1);
     gsl_matrix_set (S, 2, 0, -s2);  gsl_matrix_set (S, 2, 1,  s1);   gsl_matrix_set (S, 2, 2, 0.0);
 }
 
-/** 
+/**
  * allocation version of gslu_matrix_skewsym.
  * @see gslu_matrix_skewsym
  */

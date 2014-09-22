@@ -130,7 +130,7 @@ main (int argc, char *argv[])
     printf ("\n");
 
     // equal
-    printf ("Aequal =\n     %d\n\n", gslu_matrix_is_equal (A, A));
+    printf ("Aequal =\n     %d\n\n", gslu_matrix_is_equal (A, A, 1e-14));
 
     // determinant
     double Adet = gslu_matrix_det (A);
@@ -403,4 +403,42 @@ main (int argc, char *argv[])
     gsl_matrix_free (D7);
     gsl_matrix_free (D8);
     gsl_matrix_free (E);
+
+    printf ("===================================================================\n");
+    printf ("compare gslu_matrix_inv() to Matlab 5x5\n");
+    printf ("===================================================================\n");
+
+
+    GSLU_MATRIX_VIEW (M_static, 5, 5,
+                      { 0.8147,  0.0975,  0.1576,  0.1419,  0.6557,
+                        0.9058,  0.2785,  0.9706,  0.4218,  0.0357,
+                        0.1270,  0.5469,  0.9572,  0.9157,  0.8491,
+                        0.9134,  0.9575,  0.4854,  0.7922,  0.9340,
+                        0.6324,  0.9649,  0.8003,  0.9595,  0.6787 }
+        );
+    gsl_matrix *M = &M_static.matrix;
+    gslu_matrix_printf (M, "M");
+    printf ("\n");
+
+    gsl_matrix *M_inv = gslu_matrix_inv_alloc (M);
+    gslu_matrix_printf (M_inv, "M_inv");
+    printf ("\n");
+
+    GSLU_MATRIX_VIEW (M_inv_matlab_static, 5, 5,
+                      {  3.13342290447731,  -0.805816035240376,  -1.87652301269401,  -4.21217231519133,   5.15943254230071,
+                        -8.59849017455945,   3.526888281072080,   2.88540052118297,  13.70380515107170, -14.34688006160760,
+                        -6.27503964814357,   3.718425084991690,   3.60897475879111,   9.99519721809115, -12.40326940862400,
+                        13.60150840629180,  -6.874489097114450,  -6.38449099370088, -23.50011412870400,  27.54838381865690,
+                        -2.52486600970489,   1.070753280450900,   2.41674789941611,   5.87915036792562,  -7.25778449180101 }
+        );
+    gsl_matrix *M_inv_matlab = &M_inv_matlab_static.matrix;
+    gslu_matrix_printf (M_inv_matlab, "M_inv_matlab");
+    printf ("\n");
+
+    if (gslu_matrix_is_equal (M_inv, M_inv_matlab, 1e-13))
+        printf ("M_inv and M_inv_matlab are the same\n");
+    else
+        printf ("ERROR: M_inv and M_inv_matlab are not the same!\n");
+
+    gsl_matrix_free (M_inv);
 }

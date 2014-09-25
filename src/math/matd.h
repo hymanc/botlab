@@ -27,7 +27,6 @@ typedef struct
  * calculations which are singular at zero values (i.e. inverting a matrix with
  * a zero or near-zero determinant).
  */
-//#define MATD_EPS 1e-8
 #define MATD_EPS 1e-8
 
 /**
@@ -52,6 +51,15 @@ matd_t *matd_create(int rows, int cols);
  * responsibility to call matd_destroy() on the returned matrix.
  */
 matd_t *matd_create_data(int rows, int cols, const double *data);
+
+/**
+ * Creates a double matrix with the given number of rows and columns (or a scalar
+ * in the case where rows=0 and/or cols=0). All data elements will be initialized
+ * using the supplied array of float data, which must contain at least rows*cols elements,
+ * arranged in row-major order (i.e. index = row*ncols + col). It is the caller's
+ * responsibility to call matd_destroy() on the returned matrix.
+ */
+matd_t *matd_create_dataf(int rows, int cols, const float *data);
 
 /**
  * Creates a square identity matrix with the given number of rows (and
@@ -82,7 +90,7 @@ double matd_get(const matd_t *m, int row, int col);
  * Assigns the given value to the matrix cell at the given zero-based row and
  * column index. Performs more thorough validation checking than MATD_EL().
  */
-void matd_set(matd_t *m, int row, int col, double value);
+void matd_put(matd_t *m, int row, int col, double value);
 
 /**
  * Retrieves the scalar value of the given element ('m' must be a scalar).
@@ -94,7 +102,7 @@ double matd_get_scalar(const matd_t *m);
  * Assigns the given value to the supplied scalar element ('m' must be a scalar).
  * Performs more thorough validation checking than MATD_EL().
  */
-void matd_set_scalar(matd_t *m, double value);
+void matd_put_scalar(matd_t *m, double value);
 
 /**
  * Creates an exact copy of the supplied matrix 'm'. It is the caller's
@@ -248,6 +256,12 @@ double matd_vec_mag(const matd_t *a);
  */
 double matd_vec_dist(const matd_t *a, const matd_t *b);
 
+
+/**
+ * Same as matd_vec_dist, but only uses the first 'n' terms to compute distance
+ */
+double matd_vec_dist_n(const matd_t *a, const matd_t *b, int n);
+
 /**
  * Calculates the dot product of two vectors. Both 'a' and 'b' must be vectors
  * and have the same dimension (although one may be a row vector and one may be
@@ -271,6 +285,8 @@ matd_t *matd_vec_normalize(const matd_t *a);
  * to call matd_destroy() on the returned matrix.
  */
 matd_t *matd_crossproduct(const matd_t *a, const matd_t *b);
+
+double matd_err_inf(const matd_t *a, const matd_t *b);
 
 /**
  * Creates a new matrix by applying a series of matrix operations, as expressed
@@ -358,8 +374,37 @@ matd_t *matd_lu_l(const matd_lu_t *lu);
 matd_t *matd_lu_u(const matd_lu_t *lu);
 matd_t *matd_lu_solve(const matd_lu_t *mlu, const matd_t *b);
 
-    // uses LU decomposition internally.
-    matd_t *matd_solve(matd_t *A, matd_t *b);
+// uses LU decomposition internally.
+matd_t *matd_solve(matd_t *A, matd_t *b);
+
+////////////////////////////////
+// Cholesky Factorization
+
+/**
+ * Creates a double matrix with the Cholesky lower triangular matrix
+ * of A. A must be symmetric, positive definite. It is the caller's
+ * responsibility to call matd_destroy() on the returned matrix.
+ */
+//matd_t *matd_cholesky(const matd_t *A);
+
+typedef struct
+{
+    int is_spd;
+    matd_t *u;
+} matd_chol_t;
+
+matd_chol_t *matd_chol(matd_t *A);
+matd_t *matd_chol_solve(const matd_chol_t *chol, const matd_t *b);
+void matd_chol_destroy(matd_chol_t *chol);
+// only sensible on PSD matrices
+matd_t *matd_chol_inverse(matd_t *a);
+
+void matd_ltransposetriangle_solve(matd_t *u, const double *b, double *x);
+void matd_ltriangle_solve(matd_t *u, const double *b, double *x);
+void matd_utriangle_solve(matd_t *u, const double *b, double *x);
+
+
+double matd_max(matd_t *m);
 
 #ifdef __cplusplus
 }

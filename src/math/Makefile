@@ -30,6 +30,7 @@ LIBMATH_OBJS = \
 	ransac.o \
 	smatd.o \
 	ssc.o \
+	svd22.o \
 	unscented_transform.o
 
 ALL = $(LIB_MATH)

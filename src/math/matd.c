@@ -4,7 +4,9 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <math.h>
+#include <float.h>
 
+#include "svd22.h"
 #include "matd.h"
 
 // a matd_t with rows=0 cols=0 is a SCALAR.
@@ -51,6 +53,18 @@ matd_t *matd_create_data(int rows, int cols, const TYPE *data)
     return m;
 }
 
+matd_t *matd_create_dataf(int rows, int cols, const float *data)
+{
+    if (rows == 0 || cols == 0)
+        return matd_create_scalar(data[0]);
+
+    matd_t *m = matd_create(rows, cols);
+    for (int i = 0; i < rows * cols; i++)
+        m->data[i] = (double)data[i];
+
+    return m;
+}
+
 matd_t *matd_identity(int dim)
 {
     if (dim == 0)
@@ -77,12 +91,12 @@ TYPE matd_get(const matd_t *m, int row, int col)
 }
 
 // row and col are zero-based
-void matd_set(matd_t *m, int row, int col, TYPE value)
+void matd_put(matd_t *m, int row, int col, TYPE value)
 {
     assert(m != NULL);
 
     if (matd_is_scalar(m)) {
-        matd_set_scalar(m, value);
+        matd_put_scalar(m, value);
         return;
     }
 
@@ -102,7 +116,7 @@ TYPE matd_get_scalar(const matd_t *m)
     return (m->data[0]);
 }
 
-void matd_set_scalar(matd_t *m, TYPE value)
+void matd_put_scalar(matd_t *m, TYPE value)
 {
     assert(m != NULL);
     assert(matd_is_scalar(m));
@@ -188,6 +202,7 @@ void matd_destroy(matd_t *m)
     // after the destroy call (hard to catch failure mode)
     m->data = NULL;
 
+    memset(m, 0, sizeof(matd_t));
     free(m);
 }
 
@@ -350,6 +365,37 @@ matd_t *matd_transpose(const matd_t *a)
     return m;
 }
 
+static
+double matd_det_general(const matd_t *a)
+{
+    // Use LU decompositon to calculate the determinant
+    matd_lu_t *mlu = matd_lu(a);
+    matd_t *L = matd_lu_l(mlu);
+    matd_t *U = matd_lu_u(mlu);
+
+    // The determinants of the L and U matrices are the products of
+    // their respective diagonal elements
+    double detL = 1; double detU = 1;
+    for (int i = 0; i < a->nrows; i++) {
+        detL *= matd_get(L, i, i);
+        detU *= matd_get(U, i, i);
+    }
+
+    // The determinant of a can be calculated as
+    //     epsilon*det(L)*det(U),
+    // where epsilon is just the sign of the corresponding permutation
+    // (which is +1 for an even number of permutations and is −1
+    // for an uneven number of permutations).
+    double det = mlu->pivsign * detL * detU;
+
+    // Cleanup
+    matd_lu_destroy(mlu);
+    matd_destroy(L);
+    matd_destroy(U);
+
+    return det;
+}
+
 double matd_det(const matd_t *a)
 {
     assert(a != NULL);
@@ -364,22 +410,19 @@ double matd_det(const matd_t *a)
         case 1:
             // 1x1 matrix
             return a->data[0];
-            break;
 
         case 2:
             // 2x2 matrix
             return a->data[0] * a->data[3] - a->data[1] * a->data[2];
-            break;
 
         case 3:
             // 3x3 matrix
-            return a->data[0]*a->data[4]*a->data[8]
+            return  a->data[0]*a->data[4]*a->data[8]
                 - a->data[0]*a->data[5]*a->data[7]
                 + a->data[1]*a->data[5]*a->data[6]
                 - a->data[1]*a->data[3]*a->data[8]
                 + a->data[2]*a->data[3]*a->data[7]
                 - a->data[2]*a->data[4]*a->data[6];
-            break;
 
         case 4: {
             // 4x4 matrix
@@ -400,17 +443,13 @@ double matd_det(const matd_t *a)
                 m30 * m01 * m13 * m22 + m30 * m11 * m02 * m23 -
                 m30 * m11 * m03 * m22 - m30 * m21 * m02 * m13 +
                 m30 * m21 * m03 * m12;
-            }
-            break;
-
-        default: {
-            matd_lu_t *lu = matd_lu(a);
-            double det = matd_lu_det(lu);
-            matd_lu_destroy(lu);
-            return det;
         }
+
+        default:
+            return matd_det_general(a);
     }
 
+    assert(0);
     return 0;
 }
 
@@ -425,35 +464,70 @@ static double make_non_zero(double v)
     return v;
 }
 
+static matd_t *matd_naive_inverse(const matd_t *x, double invdet)
+{
+    // Implementation as described in
+    // http://www.mathsisfun.com/algebra/matrix-inverse-minors-cofactors-adjugate.html
+
+    // Calculate the matrix of cofactors of x
+    matd_t *cof = matd_create(x->nrows, x->ncols);
+    for (int i = 0; i < x->nrows; i++) {
+        for (int j = 0; j < x->ncols; j++) {
+
+            int nelms = (x->nrows-1)*(x->ncols-1);
+            double *reduced_data = calloc(nelms, sizeof(double));
+            int idx = 0;
+            for (int p = 0; p < x->nrows; p++) {
+                for (int q = 0; q < x->ncols; q++) {
+                    if (p != i && q != j) {
+                        reduced_data[idx] = matd_get(x, p, q);
+                        idx++;
+                    }
+                }
+            }
+            matd_t *reduced = matd_create_data(x->nrows-1, x->ncols-1, reduced_data);
+
+            //printf("reduced matrix:\n");
+            //matd_print(reduced, "%5.2f "); printf("\n");
+            //printf("----------\n");
+
+            free(reduced_data);
+            matd_put(cof, i, j, pow(-1, i+j)*matd_det(reduced));
+            matd_destroy(reduced);
+        }
+    }
+
+    //printf("cofactors matrix: \n"); matd_print(cof, "%5.2f "); printf("\n");
+
+    // Calculate the adjugate (a.k.a. adjoint): just the transposed matrix of cofactors
+    matd_t *adj = matd_transpose(cof);
+    matd_destroy(cof);
+
+    // Multiply each element of adj by 1/det(x) and we are done
+    for (int i = 0; i < adj->nrows; i++)
+        for (int j = 0; j < adj->ncols; j++)
+            matd_put(adj, i, j, matd_get(adj, i, j)*invdet);
+    return adj;
+}
+
 matd_t *matd_inverse(const matd_t *x)
 {
+    matd_t *m = NULL;
+
     assert(x != NULL);
     assert(x->nrows == x->ncols);
 
     if (matd_is_scalar(x))
         return matd_create_scalar(1.0 / x->data[0]);
 
-    if (x->nrows == 1) {
-        // a 1x1 matrix
-        matd_t *m = matd_create(x->nrows, x->nrows);
-        MATD_EL(m, 0, 0) = 1.0 / x->data[0];
-        return m;
-    }
-
-    if (x->nrows > 2) {
-        matd_lu_t *lu = matd_lu(x);
-        matd_t *eye = matd_identity(x->nrows);
-        matd_t *inv = matd_lu_solve(lu, eye);
-
-        matd_destroy(eye);
-        matd_lu_destroy(lu);
-        return inv;
-    }
-
     double invdet = 1.0 / make_non_zero(matd_det(x));
-    matd_t *m = NULL;
 
     switch(x->nrows) {
+        case 1:
+            // a 1x1 matrix
+            m = matd_create(x->nrows, x->nrows);
+            MATD_EL(m, 0, 0) = invdet;
+            return m;
 
         case 2:
             m = matd_create(x->nrows, x->nrows);
@@ -464,7 +538,6 @@ matd_t *matd_inverse(const matd_t *x)
             return m;
 
         case 3:
-            // dead code due to poor numerical stability
             m = matd_create(x->nrows, x->nrows);
 
             double a = MATD_EL(x, 0, 0), b = MATD_EL(x, 0, 1), c = MATD_EL(x, 0, 2);
@@ -483,7 +556,6 @@ matd_t *matd_inverse(const matd_t *x)
             return m;
 
         case 4: {
-            // dead code due to poor numerical stability
             double m00 = MATD_EL(x,0,0), m01 = MATD_EL(x,0,1), m02 = MATD_EL(x,0,2), m03 = MATD_EL(x,0,3);
             double m10 = MATD_EL(x,1,0), m11 = MATD_EL(x,1,1), m12 = MATD_EL(x,1,2), m13 = MATD_EL(x,1,3);
             double m20 = MATD_EL(x,2,0), m21 = MATD_EL(x,2,1), m22 = MATD_EL(x,2,2), m23 = MATD_EL(x,2,3);
@@ -515,13 +587,14 @@ matd_t *matd_inverse(const matd_t *x)
         }
 
         default:
-            assert(0);
+            // TODO: implement better inversion method
+            return matd_naive_inverse(x, invdet);
     }
-
-    assert(0);
 
     return NULL; // unreachable
 }
+
+
 
 // TODO Optimization: Some operations we could perform in-place,
 // saving some memory allocation work. E.g., ADD, SUBTRACT. Just need
@@ -537,34 +610,34 @@ static inline matd_t *matd_op_gobble_right(const char *expr, int *pos, matd_t *a
 
         switch (expr[*pos]) {
 
-        case '\'': {
-            assert(acc != NULL); // either a syntax error or a math op failed, producing null
-            matd_t *res = matd_transpose(acc);
-            garb[*garbpos] = res;
-            (*garbpos)++;
-            acc = res;
+            case '\'': {
+                assert(acc != NULL); // either a syntax error or a math op failed, producing null
+                matd_t *res = matd_transpose(acc);
+                garb[*garbpos] = res;
+                (*garbpos)++;
+                acc = res;
 
-            (*pos)++;
-            break;
-        }
+                (*pos)++;
+                break;
+            }
 
-            // handle inverse ^-1. No other exponents are allowed.
-        case '^': {
-            assert(acc != NULL);
-            assert(expr[*pos+1] == '-');
-            assert(expr[*pos+2] == '1');
+                // handle inverse ^-1. No other exponents are allowed.
+            case '^': {
+                assert(acc != NULL);
+                assert(expr[*pos+1] == '-');
+                assert(expr[*pos+2] == '1');
 
-            matd_t *res = matd_inverse(acc);
-            garb[*garbpos] = res;
-            (*garbpos)++;
-            acc = res;
+                matd_t *res = matd_inverse(acc);
+                garb[*garbpos] = res;
+                (*garbpos)++;
+                acc = res;
 
-            (*pos)+=3;
-            break;
-        }
+                (*pos)+=3;
+                break;
+            }
 
-        default:
-            return acc;
+            default:
+                return acc;
         }
     }
 
@@ -580,193 +653,193 @@ static matd_t *matd_op_recurse(const char *expr, int *pos, matd_t *acc, matd_t *
 
         switch (expr[*pos]) {
 
-        case '(': {
-            if (oneterm && acc != NULL)
+            case '(': {
+                if (oneterm && acc != NULL)
+                    return acc;
+                (*pos)++;
+                matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 0);
+                rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
+
+                if (acc == NULL) {
+                    acc = rhs;
+                } else {
+                    matd_t *res = matd_multiply(acc, rhs);
+                    garb[*garbpos] = res;
+                    (*garbpos)++;
+                    acc = res;
+                }
+
+                break;
+            }
+
+            case ')': {
+                if (oneterm)
+                    return acc;
+
+                (*pos)++;
                 return acc;
-            (*pos)++;
-            matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 0);
-            rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
-
-            if (acc == NULL) {
-                acc = rhs;
-            } else {
-                matd_t *res = matd_multiply(acc, rhs);
-                garb[*garbpos] = res;
-                (*garbpos)++;
-                acc = res;
             }
 
-            break;
-        }
+            case '*': {
+                (*pos)++;
 
-        case ')': {
-            if (oneterm)
-                return acc;
+                matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 1);
+                rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
 
-            (*pos)++;
-            return acc;
-        }
+                if (acc == NULL) {
+                    acc = rhs;
+                } else {
+                    matd_t *res = matd_multiply(acc, rhs);
+                    garb[*garbpos] = res;
+                    (*garbpos)++;
+                    acc = res;
+                }
 
-        case '*': {
-            (*pos)++;
-
-            matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 1);
-            rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
-
-            if (acc == NULL) {
-                acc = rhs;
-            } else {
-                matd_t *res = matd_multiply(acc, rhs);
-                garb[*garbpos] = res;
-                (*garbpos)++;
-                acc = res;
+                break;
             }
 
-            break;
-        }
-
-        case 'F': {
-            matd_t *rhs = args[*argpos];
-            garb[*garbpos] = rhs;
-            (*garbpos)++;
-
-            (*pos)++;
-            (*argpos)++;
-
-            rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
-
-            if (acc == NULL) {
-                acc = rhs;
-            } else {
-                matd_t *res = matd_multiply(acc, rhs);
-                garb[*garbpos] = res;
+            case 'F': {
+                matd_t *rhs = args[*argpos];
+                garb[*garbpos] = rhs;
                 (*garbpos)++;
-                acc = res;
+
+                (*pos)++;
+                (*argpos)++;
+
+                rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
+
+                if (acc == NULL) {
+                    acc = rhs;
+                } else {
+                    matd_t *res = matd_multiply(acc, rhs);
+                    garb[*garbpos] = res;
+                    (*garbpos)++;
+                    acc = res;
+                }
+
+                break;
             }
 
-            break;
-        }
+            case 'M': {
+                matd_t *rhs = args[*argpos];
 
-        case 'M': {
-            matd_t *rhs = args[*argpos];
+                (*pos)++;
+                (*argpos)++;
 
-            (*pos)++;
-            (*argpos)++;
+                rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
 
-            rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
+                if (acc == NULL) {
+                    acc = rhs;
+                } else {
+                    matd_t *res = matd_multiply(acc, rhs);
+                    garb[*garbpos] = res;
+                    (*garbpos)++;
+                    acc = res;
+                }
 
-            if (acc == NULL) {
-                acc = rhs;
-            } else {
-                matd_t *res = matd_multiply(acc, rhs);
-                garb[*garbpos] = res;
-                (*garbpos)++;
-                acc = res;
+                break;
             }
-
-            break;
-        }
 
 /*
-        case 'D': {
-            int rows = expr[*pos+1]-'0';
-            int cols = expr[*pos+2]-'0';
+  case 'D': {
+  int rows = expr[*pos+1]-'0';
+  int cols = expr[*pos+2]-'0';
 
-            matd_t *rhs = matd_create(rows, cols);
+  matd_t *rhs = matd_create(rows, cols);
 
-            break;
-        }
+  break;
+  }
 */
-            // a constant (SCALAR) defined inline. Treat just like M, creating a matd_t on the fly.
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-        case '.': {
-            const char *start = &expr[*pos];
-            char *end;
-            double s = strtod(start, &end);
-            (*pos) += (end - start);
-            matd_t *rhs = matd_create_scalar(s);
-            garb[*garbpos] = rhs;
-            (*garbpos)++;
-
-            rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
-
-            if (acc == NULL) {
-                acc = rhs;
-            } else {
-                matd_t *res = matd_multiply(acc, rhs);
-                garb[*garbpos] = res;
+                // a constant (SCALAR) defined inline. Treat just like M, creating a matd_t on the fly.
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+            case '.': {
+                const char *start = &expr[*pos];
+                char *end;
+                double s = strtod(start, &end);
+                (*pos) += (end - start);
+                matd_t *rhs = matd_create_scalar(s);
+                garb[*garbpos] = rhs;
                 (*garbpos)++;
-                acc = res;
+
+                rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
+
+                if (acc == NULL) {
+                    acc = rhs;
+                } else {
+                    matd_t *res = matd_multiply(acc, rhs);
+                    garb[*garbpos] = res;
+                    (*garbpos)++;
+                    acc = res;
+                }
+
+                break;
             }
 
-            break;
-        }
+            case '+': {
+                if (oneterm && acc != NULL)
+                    return acc;
 
-        case '+': {
-            if (oneterm && acc != NULL)
-                return acc;
-
-            // don't support unary plus
-            assert(acc != NULL);
-            (*pos)++;
-            matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 1);
-            rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
-
-            matd_t *res = matd_add(acc, rhs);
-
-            garb[*garbpos] = res;
-            (*garbpos)++;
-            acc = res;
-            break;
-        }
-
-        case '-': {
-            if (oneterm && acc != NULL)
-                return acc;
-
-            if (acc == NULL) {
-                // unary minus
+                // don't support unary plus
+                assert(acc != NULL);
                 (*pos)++;
                 matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 1);
                 rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
 
-                matd_t *res = matd_scale(rhs, -1);
-                garb[*garbpos] = res;
-                (*garbpos)++;
-                acc = res;
-            } else {
-                // subtract
-                (*pos)++;
-                matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 1);
-                rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
+                matd_t *res = matd_add(acc, rhs);
 
-                matd_t *res = matd_subtract(acc, rhs);
                 garb[*garbpos] = res;
                 (*garbpos)++;
                 acc = res;
+                break;
             }
-            break;
-        }
 
-        case ' ': {
-            // nothing to do. spaces are meaningless.
-            (*pos)++;
-            break;
-        }
+            case '-': {
+                if (oneterm && acc != NULL)
+                    return acc;
 
-        default: {
-            fprintf(stderr, "matd_op(): Unknown character: '%c'\n", expr[*pos]);
-            assert(expr[*pos] != expr[*pos]);
-        }
+                if (acc == NULL) {
+                    // unary minus
+                    (*pos)++;
+                    matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 1);
+                    rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
+
+                    matd_t *res = matd_scale(rhs, -1);
+                    garb[*garbpos] = res;
+                    (*garbpos)++;
+                    acc = res;
+                } else {
+                    // subtract
+                    (*pos)++;
+                    matd_t *rhs = matd_op_recurse(expr, pos, NULL, args, argpos, garb, garbpos, 1);
+                    rhs = matd_op_gobble_right(expr, pos, rhs, garb, garbpos);
+
+                    matd_t *res = matd_subtract(acc, rhs);
+                    garb[*garbpos] = res;
+                    (*garbpos)++;
+                    acc = res;
+                }
+                break;
+            }
+
+            case ' ': {
+                // nothing to do. spaces are meaningless.
+                (*pos)++;
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "matd_op(): Unknown character: '%c'\n", expr[*pos]);
+                assert(expr[*pos] != expr[*pos]);
+            }
         }
     }
     return acc;
@@ -843,14 +916,25 @@ double matd_vec_dist(const matd_t *a, const matd_t *b)
     assert(a != NULL);
     assert(b != NULL);
     assert(matd_is_vector(a) && matd_is_vector(b));
+    assert(a->nrows*a->ncols == b->nrows*b->ncols);
 
     int lena = a->nrows*a->ncols;
-//    int lenb = b->nrows*b->ncols;
+    return matd_vec_dist_n(a, b, lena);
+}
 
-    assert((a->nrows*a->ncols) == (b->nrows*b->ncols));
+double matd_vec_dist_n(const matd_t *a, const matd_t *b, int n)
+{
+    assert(a != NULL);
+    assert(b != NULL);
+    assert(matd_is_vector(a) && matd_is_vector(b));
+
+    int lena = a->nrows*a->ncols;
+    int lenb = b->nrows*b->ncols;
+
+    assert(n <= lena && n <= lenb);
 
     double mag = 0.0;
-    for (int i = 0; i < lena; i++)
+    for (int i = 0; i < n; i++)
         mag += sq(a->data[i] - b->data[i]);
     return sqrt(mag);
 }
@@ -861,9 +945,8 @@ double matd_vec_dot_product(const matd_t *a, const matd_t *b)
     assert(b != NULL);
     assert(matd_is_vector(a) && matd_is_vector(b));
     int adim = a->ncols*a->nrows;
-//    int bdim = b->ncols*b->nrows;
-
-    assert((a->nrows*a->ncols) == (b->nrows*b->ncols));
+    int bdim = b->ncols*b->nrows;
+    assert(adim == bdim);
 
     double acc = 0;
     for (int i = 0; i < adim; i++) {
@@ -905,8 +988,7 @@ matd_t *matd_crossproduct(const matd_t *a, const matd_t *b)
     return r;
 }
 
-/*
-static TYPE matd_err_inf(const matd_t *a, const matd_t *b)
+TYPE matd_err_inf(const matd_t *a, const matd_t *b)
 {
     assert(a->nrows == b->nrows);
     assert(a->ncols == b->ncols);
@@ -924,196 +1006,6 @@ static TYPE matd_err_inf(const matd_t *a, const matd_t *b)
     }
 
     return maxf;
-}
-*/
-
-/** SVD 2x2.
-
-    A = USV'
-
-    U = [ cos(theta) -sin(theta) ]
-        [ sin(theta)  cos(theta) ]
-
-    S = [ e  0 ]
-        [ 0  f ]
-
-    V = [ cos(phi)   -sin(phi) ]
-        [ sin(phi)   cos(phi)  ]
-
-
-    Note that A'A = VS'U'USV' = VSSV', which we can expand. (This
-    operation lets us just worry about phi, without having to think
-    about theta simultaneously.) Let s = sin(phi), c = cos(phi):
-
-    A'A = [ w x ] = [ e^2c^2 + f^2s^2      e^2sc - f^2sc  ]
-          [ x y ]   [ e^2sc - f^2sc       e^2s^2 + f^2c^2 ]
-
-    This gives us simultaneous equations:
-
-    e^2c^2 + f^2s^2 = w    (1)
-    e^2sc - f^2sc   = x    (2)
-    e^2s^2 + f^2c^2 = y    (3)
-
-    e^2 + f^2              = w + y   (1 + 3)
-    (e^2 - f^2)(c^2 - s^2) = w - y   (1 - 3)
-    (e^2 - f^2)sc          = x       (2)
-
-    (e^2 - f^2)cos(2phi)   = w - y
-    (e^2 - f^2)sin(2phi)   = 2x
-
-    tan(2phi) = 2x / (w - y)
-
-    /////////////////////////
-
-    Similarly, we obtain for theta:
-
-    AA' = USV'VSU' = USS'U'
-
-    AA' = [ w' x' ] (though these are different w,x,y than for phi)
-          [ x' y' ]
-
-    tan(2theta) = 2x' / (w' - y')
-
-    ////////////////////////
-
-    We now recover S. We could first recover e^2 and f^2, from which
-    we might be tempted into concluding that S = diag([e f]). But note
-    that all of our math has been in terms of S'S, and there are
-    values of S such that S'S = diag[e^2 f^2] even when S does not
-    equal diag([e f]). We have done nothing to prevent such a case.
-
-    In particular, this is possible when S can be written S = WD, S'S
-    = D'W'WD = D'D. We can trivially recover WD by starting with the
-    definition of SVD and using our U and V matrices already
-    recovered. A=U(WD)V', thus WD = U'AV. We can factor WD into W and
-    D, then incorporate the W term into U in order to obtain our SVD.
-
-    (Consider the example case A = [12 13; 13 -12].) A'A=AA' =
-    diag([313 313]). This will yield theta=phi=0, and thus WD=A (and
-    is clearly not diagonal!).
-
-
-    We then solve for the "singular values matrix" with WS = U'AV. WS
-is often equal to S, except in the case that Sx */
-struct svd22 {
-    // A = USV'
-    double U[4];
-    double S[2]; // just the diagonal elements
-    double V[4];
-};
-
-void matd_svd22_impl(const double A[4], struct svd22 *svd)
-{
-    double w, x, y;
-
-    // compute V's phi from A'A
-    w = A[0]*A[0] + A[2]*A[2];
-    x = A[0]*A[1] + A[2]*A[3];
-    y = A[1]*A[1] + A[3]*A[3];
-
-    double phi = 0.5*atan2(2*x, w - y);
-
-    // compute U's theta from AA'
-    w = A[0]*A[0] + A[1]*A[1];
-    x = A[0]*A[2] + A[1]*A[3];
-    y = A[2]*A[2] + A[3]*A[3];
-
-    double theta = 0.5*atan2(2*x, w - y);
-
-    // Now we'll actually construct U and V (which may be modified
-    // later...) For now, they're pure rotations.
-    double ct = cos(theta), st = sin(theta);
-    double cp = cos(phi), sp = sin(phi);
-
-    svd->U[0] = ct;
-    svd->U[1] = -st;
-    svd->U[2] = st;
-    svd->U[3] = ct;
-
-    svd->V[0] = cp;
-    svd->V[1] = -sp;
-    svd->V[2] = sp;
-    svd->V[3] = cp;
-
-    // Solve for the "singular value matrix" WS... if UWSV' = A, then
-    // WS = U'AV.
-
-    // WS = U'*A*V
-    double T[4] = { A[0]*svd->V[0] + A[1]*svd->V[2],    // T = A*V
-                    A[0]*svd->V[1] + A[1]*svd->V[3],
-                    A[2]*svd->V[0] + A[3]*svd->V[2],
-                    A[2]*svd->V[1] + A[3]*svd->V[3] };
-
-    double WS[4] = { svd->U[0]*T[0] + svd->U[2]*T[2],   // WS = U'*T = U'*A*V
-                     svd->U[0]*T[1] + svd->U[2]*T[3],
-                     svd->U[1]*T[0] + svd->U[3]*T[2],
-                     svd->U[1]*T[1] + svd->U[3]*T[3] };
-
-    svd->S[0] = sqrtf(WS[0]*WS[0] + WS[1]*WS[1]);
-    svd->S[1] = sqrtf(WS[2]*WS[2] + WS[3]*WS[3]);
-
-    // Solve for W from WS, being careful to handle singular cases
-    // such that W is unitary.
-    double eps = 0.0000001;
-    double W[4];
-    if (svd->S[0] > eps) {
-        W[0] = WS[0] / svd->S[0];
-        W[2] = WS[2] / svd->S[0];
-    } else {
-        W[0] = 1;
-        W[2] = 0;
-    }
-
-    if (svd->S[1] > eps) {
-        W[1] = WS[1] / svd->S[1];
-        W[3] = WS[3] / svd->S[1];
-    } else {
-        W[1] = 0;
-        W[3] = 1;
-    }
-
-    // updated U = UW
-    double UW[4] = { svd->U[0]*W[0] + svd->U[1]*W[2],
-                     svd->U[0]*W[1] + svd->U[1]*W[3],
-                     svd->U[2]*W[0] + svd->U[3]*W[2],
-                     svd->U[2]*W[1] + svd->U[3]*W[3] };
-
-    memcpy(svd->U, UW, 4*sizeof(double));
-
-    assert(svd->S[0] >= 0);
-    assert(svd->S[1] >= 0);
-
-    // sort singular values.
-    if (abs(svd->S[1]) > abs(svd->S[0])) {
-        // Curiously, this code never seems to get invoked.  Why is it
-        // that S[0] always ends up the dominant vector?  However,
-        // this code has been tested (flipping the logic forces us to
-        // sort the singular values in ascending order).
-        //
-        // P = [ 0 1 ; 1 0 ]
-        // USV' = (UP)(PSP)(PV')
-        //      = (UP)(PSP)(VP)'
-        //      = (UP)(PSP)(P'V')'
-        double t = svd->S[0];
-        svd->S[0] = svd->S[1];
-        svd->S[1] = t;
-
-        // exchange columns of U and V
-        double s[2];
-        s[0] = svd->U[0];
-        s[1] = svd->U[2];
-        svd->U[0] = svd->U[1];
-        svd->U[2] = svd->U[3];
-        svd->U[1] = s[0];
-        svd->U[3] = s[1];
-
-        s[0] = svd->V[0];
-        s[1] = svd->V[2];
-        svd->V[0] = svd->V[1];
-        svd->V[2] = svd->V[3];
-        svd->V[1] = s[0];
-        svd->V[3] = s[1];
-    }
 }
 
 // Computes an SVD for square or tall matrices. This code doesn't work
@@ -1150,7 +1042,7 @@ static matd_svd_t matd_svd_tall(matd_t *A)
 
     for (int hhidx = 0; hhidx < A->nrows; hhidx++)  {
 
-        if (hhidx + 1 < A->ncols) {
+        if (hhidx < A->ncols) {
             // We construct the normal of the reflection plane: let u
             // be the vector to reflect, x =[ M 0 0 0 ] the target
             // location for u (u') after reflection (with M = ||u||).
@@ -1188,6 +1080,11 @@ static matd_svd_t matd_svd_tall(matd_t *A)
 
             // normalize v
             double mag = sqrt(mag2);
+
+            // this case arises with matrices of all zeros, for example.
+            if (mag == 0)
+                continue;
+
             for (int i = 0; i < vlen; i++)
                 v[i] /= mag;
 
@@ -1270,21 +1167,14 @@ static matd_svd_t matd_svd_tall(matd_t *A)
         }
     }
 
-/*
-    double bidiag_err = matd_err_inf(matd_op("M*M*M'", LS, B, RS), A);
-    if (bidiag_err > 1e-8) {
-        matd_print(A, "%15.10f");
-        printf("\n");
-        matd_print(matd_op("M*M*M'", LS, B, RS), "%15.10f");
-        printf("bidiag_err: %.10f\n", bidiag_err);
-    }
-*/
-
     // empirically, we find a roughly linear worst-case number of iterations
     // as a function of rows*cols. maxiters ~= 1.5*nrows*ncols
     // we're a bit conservative below.
-    int maxiters = 150 + A->nrows*A->ncols*5;
+    int maxiters = 200 + 2*A->nrows*A->ncols;
     int iter;
+
+    double max; // maximum non-zero value being reduced this iteration
+
     for (iter = 0; iter < maxiters; iter++) {
 
         // find the largest off-diagonal element of B
@@ -1293,9 +1183,11 @@ static matd_svd_t matd_svd_tall(matd_t *A)
         // wasteful.. However, probably a small contributor to overall
         // runtime.
         int maxi = -1, maxj = -1;
-        double max = -1;
-        for (int i = 0; i < A->ncols; i++) {
-            for (int j = 0; j < A->ncols; j++) {
+        max = -1;
+
+        // only search top "square" portion
+        for (int i = 0; i < B->ncols; i++) {
+            for (int j = 0; j < B->ncols; j++) {
                 if (i == j)
                     continue;
 
@@ -1319,53 +1211,55 @@ static matd_svd_t matd_svd_tall(matd_t *A)
         double A2 = MATD_EL(B, maxj, maxi);
         double A3 = MATD_EL(B, maxj, maxj);
 
-        double w = A0*A0 + A2*A2;
-        double x = A0*A1 + A2*A3;
-        double y = A1*A1 + A3*A3;
-
-        double phi = .5 * atan2(2*x, w-y);
-
-        w = A0*A0 + A1*A1;
-        x = A0*A2 + A1*A3;
-        y = A2*A2 + A3*A3;
-
-        double theta = .5 * atan2(2*x, w-y);
-
-        // LS = LS * ROT(theta)
-        //matd_t *QL = matd_identity(A->nrows);
-        //MATD_EL(QL, maxi, maxi) = cos(theta);
-        //MATD_EL(QL, maxi, maxj) = -sin(theta);
-        //MATD_EL(QL, maxj, maxi) = sin(theta);
-        //MATD_EL(QL, maxj, maxj) = cos(theta);
-
-        //matd_t *QR = matd_identity(A->ncols);
-        //MATD_EL(QR, maxi, maxi) = cos(phi);
-        //MATD_EL(QR, maxi, maxj) = -sin(phi);
-        //MATD_EL(QR, maxj, maxi) = sin(phi);
-        //MATD_EL(QR, maxj, maxj) = cos(phi);
-
-        // TODO: optimize the three multiplications below.
         if (1) {
-            //  LS = matd_op("F*M", LS, QL);
-            double c = cos(theta), s = sin(theta);
+            double AQ[4];
+            AQ[0] = A0;
+            AQ[1] = A1;
+            AQ[2] = A2;
+            AQ[3] = A3;
 
+            double U[4], S[2], V[4];
+            svd22(AQ, U, S, V);
+
+/*  Reference (slow) implementation...
+
+            // LS = LS * ROT(theta) = LS * QL
+            matd_t *QL = matd_identity(A->nrows);
+            MATD_EL(QL, maxi, maxi) = U[0];
+            MATD_EL(QL, maxi, maxj) = U[1];
+            MATD_EL(QL, maxj, maxi) = U[2];
+            MATD_EL(QL, maxj, maxj) = U[3];
+
+            matd_t *QR = matd_identity(A->ncols);
+            MATD_EL(QR, maxi, maxi) = V[0];
+            MATD_EL(QR, maxi, maxj) = V[1];
+            MATD_EL(QR, maxj, maxi) = V[2];
+            MATD_EL(QR, maxj, maxj) = V[3];
+
+            LS = matd_op("F*M", LS, QL);
+            RS = matd_op("F*M", RS, QR); // remember we'll transpose RS.
+            B = matd_op("M'*F*M", QL, B, QR);
+
+            matd_destroy(QL);
+            matd_destroy(QR);
+*/
+
+            //  LS = matd_op("F*M", LS, QL);
             for (int i = 0; i < LS->nrows; i++) {
                 double vi = MATD_EL(LS, i, maxi);
                 double vj = MATD_EL(LS, i, maxj);
 
-                MATD_EL(LS, i, maxi) = c*vi + s*vj;
-                MATD_EL(LS, i, maxj) = -s*vi + c*vj;
+                MATD_EL(LS, i, maxi) = U[0]*vi + U[2]*vj;
+                MATD_EL(LS, i, maxj) = U[1]*vi + U[3]*vj;
             }
 
             //  RS = matd_op("F*M", RS, QR); // remember we'll transpose RS.
-            double d = cos(phi), t = sin(phi);
-
             for (int i = 0; i < RS->nrows; i++) {
                 double vi = MATD_EL(RS, i, maxi);
                 double vj = MATD_EL(RS, i, maxj);
 
-                MATD_EL(RS, i, maxi) = d*vi + t*vj;
-                MATD_EL(RS, i, maxj) = -t*vi + d*vj;
+                MATD_EL(RS, i, maxi) = V[0]*vi + V[2]*vj;
+                MATD_EL(RS, i, maxj) = V[1]*vi + V[3]*vj;
             }
 
             // B = matd_op("M'*F*M", QL, B, QR);
@@ -1374,8 +1268,8 @@ static matd_svd_t matd_svd_tall(matd_t *A)
                 double vi = MATD_EL(B, maxi, i);
                 double vj = MATD_EL(B, maxj, i);
 
-                MATD_EL(B, maxi, i) = c*vi + s*vj;
-                MATD_EL(B, maxj, i) = -s*vi + c*vj;
+                MATD_EL(B, maxi, i) = U[0]*vi + U[2]*vj;
+                MATD_EL(B, maxj, i) = U[1]*vi + U[3]*vj;
             }
 
             // The QR matrix mixes columns of B.
@@ -1383,25 +1277,17 @@ static matd_svd_t matd_svd_tall(matd_t *A)
                 double vi = MATD_EL(B, i, maxi);
                 double vj = MATD_EL(B, i, maxj);
 
-                MATD_EL(B, i, maxi) = d*vi + t*vj;
-                MATD_EL(B, i, maxj) = -t*vi + d*vj;
+                MATD_EL(B, i, maxi) = V[0]*vi + V[2]*vj;
+                MATD_EL(B, i, maxj) = V[1]*vi + V[3]*vj;
             }
         }
     }
 
     if (iter == maxiters) {
-        printf("WARNING: maximum iters (%d)\n", iter);
+        printf("WARNING: maximum iters (maximum = %d, matrix %d x %d, max=%.15f)\n",
+               iter, A->nrows, A->ncols, max);
     }
 
-//    printf("Unfixed SVD check: should be zero:\n");
-//    matd_t *Acheck2 = matd_op("M*M*M'-M", LS, B, RS, A);
-//    matd_print(Acheck2, "%15f");
-
-//    printf("iter: %d\n", iter);
-
-//    matd_print(B, "%15f");
-
-    // Now, the fixups. Sort the singular values by magnitude and make
     // them all positive by flipping the corresponding columns of
     // U/LS.
     int idxs[A->ncols];
@@ -1434,47 +1320,38 @@ static matd_svd_t matd_svd_tall(matd_t *A)
     matd_t *LP = matd_identity(A->nrows);
     matd_t *RP = matd_identity(A->ncols);
 
-    // We currently have:
-    //
-    // LS * B * RS'
-    //
-    // compute the permutation matrices that will re-order our diagonal
-    // matrix to be in descending order of magnitude.
-    //
-    // B2 = LP*B*RP'
-    //
-    // We will then do:
-    //
-    // LS * LP' * LP * B * RP' * RP * RS =
-    // (LS*LP')*(B2)*(RS*RP')' =
-    //   LS2  * B2 * RS2'    =
-    //    U     S     V'
     for (int i = 0; i < A->ncols; i++) {
-        MATD_EL(LP, i, i) = 0; // undo the identity above
-        MATD_EL(RP, i, i) = 0;
+        MATD_EL(LP, idxs[i], idxs[i]) = 0; // undo the identity above
+        MATD_EL(RP, idxs[i], idxs[i]) = 0;
 
-        MATD_EL(LP, i, idxs[i]) = vals[i] < 0 ? -1 : 1;
-        MATD_EL(RP, i, idxs[i]) = 1;
+        MATD_EL(LP, idxs[i], i) = vals[i] < 0 ? -1 : 1;
+        MATD_EL(RP, idxs[i], i) = 1; //vals[i] < 0 ? -1 : 1;
     }
 
-    // solve for B2.
-    // XXX permutations could be done more efficiently than matrix multiply.
-    B = matd_op("M*F*M'", LP, B, RP);
+    // we've factored:
+    // LP*(something)*RP'
+
+    // solve for (something)
+    B = matd_op("M'*F*M", LP, B, RP);
 
     // update LS and RS, remembering that RS will be transposed.
-    // XXX permutation could be done more efficiently than matrix multiply.
-    LS = matd_op("F*M'", LS, LP);
-    RS = matd_op("F*M'", RS, RP);
+    LS = matd_op("F*M", LS, LP);
+    RS = matd_op("F*M", RS, RP);
 
     matd_destroy(LP);
     matd_destroy(RP);
 
-//    printf("Fixed SVD: should be zero:\n");
-//    matd_t *Acheck3 = matd_op("M*M*M'-M", LS, B, RS, A);
-//    matd_print(Acheck3, "%15f");
-
     matd_svd_t res;
     memset(&res, 0, sizeof(res));
+
+    // make B exactly diagonal
+
+    for (int i = 0; i < B->nrows; i++) {
+        for (int j = 0; j < B->ncols; j++) {
+            if (i != j)
+                MATD_EL(B, i, j) = 0;
+        }
+    }
 
     res.U = LS;
     res.S = B;
@@ -1507,24 +1384,24 @@ matd_svd_t matd_svd(matd_t *A)
     }
 
 /*
-    matd_t *check = matd_op("M*M*M'-M", res.U, res.S, res.V, A);
-    double maxerr = 0;
+  matd_t *check = matd_op("M*M*M'-M", res.U, res.S, res.V, A);
+  double maxerr = 0;
 
-    for (int i = 0; i < check->nrows; i++)
-        for (int j = 0; j < check->ncols; j++)
-            maxerr = fmax(maxerr, fabs(MATD_EL(check, i, j)));
+  for (int i = 0; i < check->nrows; i++)
+  for (int j = 0; j < check->ncols; j++)
+  maxerr = fmax(maxerr, fabs(MATD_EL(check, i, j)));
 
-    matd_destroy(check);
+  matd_destroy(check);
 
-    if (maxerr > 1e-7) {
-        printf("bad maxerr: %15f\n", maxerr);
-    }
+  if (maxerr > 1e-7) {
+  printf("bad maxerr: %15f\n", maxerr);
+  }
 
-    if (maxerr > 1e-5) {
-        printf("bad maxerr: %15f\n", maxerr);
-        matd_print(A, "%15f");
-        assert(0);
-    }
+  if (maxerr > 1e-5) {
+  printf("bad maxerr: %15f\n", maxerr);
+  matd_print(A, "%15f");
+  assert(0);
+  }
 
 */
     return res;
@@ -1610,6 +1487,7 @@ void matd_lu_destroy(matd_lu_t *mlu)
 {
     matd_destroy(mlu->lu);
     free(mlu->piv);
+    memset(mlu, 0, sizeof(matd_lu_t));
     free(mlu);
 }
 
@@ -1700,7 +1578,6 @@ matd_t *matd_solve(matd_t *A, matd_t *b)
     return x;
 }
 
-
 #if 0
 
 static int randi()
@@ -1719,18 +1596,8 @@ static double randf()
 int main(int argc, char *argv[])
 {
     if (1) {
-        int maxdim = 5;
+        int maxdim = 16;
         matd_t *A = matd_create(maxdim, maxdim);
-
-        for (int row = 0; row < A->nrows; row++) {
-            for (int col = 0; col < A->ncols; col++) {
-
-                MATD_EL(A, row, col) = randi();
-            }
-        }
-
-        matd_t *Ainv = matd_inverse(A);
-        matd_print(matd_op("M*F", A, Ainv), "%15f");
 
         for (int iter = 0; 1; iter++) {
             srand(iter);
@@ -1756,11 +1623,11 @@ int main(int argc, char *argv[])
         }
 
 /*        matd_t *A = matd_create_data(2, 5, (double[]) { 1, 5, 2, 6,
-                    3, 3, 0, 7,
-                    1, 1, 0, -2,
-                    4, 0, 9, 9, 2, 6, 1, 3, 2, 5, 5, 4, -1, 2, 5, 9, 8, 2 });
+          3, 3, 0, 7,
+          1, 1, 0, -2,
+          4, 0, 9, 9, 2, 6, 1, 3, 2, 5, 5, 4, -1, 2, 5, 9, 8, 2 });
 
-        matd_svd(A);
+          matd_svd(A);
 */
         return 0;
     }
@@ -1829,6 +1696,211 @@ int main(int argc, char *argv[])
     }
 }
 
-
 #endif
 
+// XXX NGV Cholesky
+/*static double *matd_cholesky_raw(double *A, int n)
+  {
+  double *L = (double*)calloc(n * n, sizeof(double));
+
+  for (int i = 0; i < n; i++) {
+  for (int j = 0; j < (i+1); j++) {
+  double s = 0;
+  for (int k = 0; k < j; k++)
+  s += L[i * n + k] * L[j * n + k];
+  L[i * n + j] = (i == j) ?
+  sqrt(A[i * n + i] - s) :
+  (1.0 / L[j * n + j] * (A[i * n + j] - s));
+  }
+  }
+
+  return L;
+  }
+
+  matd_t *matd_cholesky(const matd_t *A)
+  {
+  assert(A->nrows == A->ncols);
+  double *L_data = matd_cholesky_raw(A->data, A->nrows);
+  matd_t *L = matd_create_data(A->nrows, A->ncols, L_data);
+  free(L_data);
+  return L;
+  }*/
+
+// NOTE: The below implementation of Cholesky is different from the one
+// used in NGV.
+matd_chol_t *matd_chol(matd_t *A)
+{
+    assert(A->nrows == A->ncols);
+    int N = A->nrows;
+
+    // make upper right
+    matd_t *U = matd_copy(A);
+
+    // don't actually need to clear lower-left... we won't touch it.
+/*    for (int i = 0; i < U->nrows; i++) {
+      for (int j = 0; j < i; j++) {
+//            assert(MATD_EL(U, i, j) == MATD_EL(U, j, i));
+MATD_EL(U, i, j) = 0;
+}
+}
+*/
+    int is_spd = 1; // (A->nrows == A->ncols);
+
+    for (int i = 0; i < N; i++) {
+        double d = MATD_EL(U, i, i);
+        is_spd &= (d > 0);
+
+        if (d < MATD_EPS)
+            d = MATD_EPS;
+        d = 1.0 / sqrt(d);
+
+        for (int j = i; j < N; j++)
+            MATD_EL(U, i, j) *= d;
+
+        for (int j = i+1; j < N; j++) {
+            double s = MATD_EL(U, i, j);
+
+            if (s == 0)
+                continue;
+
+            for (int k = j; k < N; k++) {
+                MATD_EL(U, j, k) -= MATD_EL(U, i, k)*s;
+            }
+        }
+    }
+
+    matd_chol_t *chol = calloc(1, sizeof(matd_chol_t));
+    chol->is_spd = is_spd;
+    chol->u = U;
+    return chol;
+}
+
+void matd_chol_destroy(matd_chol_t *chol)
+{
+    matd_destroy(chol->u);
+    free(chol);
+}
+
+// Solve: (U')x = b, U is upper triangular
+void matd_ltransposetriangle_solve(matd_t *u, const TYPE *b, TYPE *x)
+{
+    int n = u->ncols;
+    memcpy(x, b, n*sizeof(TYPE));
+    for (int i = 0; i < n; i++) {
+        x[i] /= MATD_EL(u, i, i);
+
+        for (int j = i+1; j < u->ncols; j++) {
+            x[j] -= x[i] * MATD_EL(u, i, j);
+        }
+    }
+}
+
+// Solve: Lx = b, L is lower triangular
+void matd_ltriangle_solve(matd_t *L, const TYPE *b, TYPE *x)
+{
+    int n = L->ncols;
+
+    for (int i = 0; i < n; i++) {
+        double acc = b[i];
+
+        for (int j = 0; j < i; j++) {
+            acc -= MATD_EL(L, i, j)*x[j];
+        }
+
+        x[i] = acc / MATD_EL(L, i, i);
+    }
+}
+
+// solve Ux = b, U is upper triangular
+void matd_utriangle_solve(matd_t *u, const TYPE *b, TYPE *x)
+{
+    for (int i = u->ncols-1; i >= 0; i--) {
+        double bi = b[i];
+
+        double diag = MATD_EL(u, i, i);
+
+        for (int j = i+1; j < u->ncols; j++)
+            bi -= MATD_EL(u, i, j)*x[j];
+
+        x[i] = bi / diag;
+    }
+}
+
+matd_t *matd_chol_solve(const matd_chol_t *chol, const matd_t *b)
+{
+    matd_t *u = chol->u;
+
+    matd_t *x = matd_copy(b);
+
+    // LUx = b
+
+    // solve Ly = b ==> (U')y = b
+
+    for (int i = 0; i < u->nrows; i++) {
+        for (int j = 0; j < i; j++) {
+            // b[i] -= L[i,j]*x[j]... replicated across columns of b
+            //   ==> i.e., ==>
+            // b[i,k] -= L[i,j]*x[j,k]
+            for (int k = 0; k < b->ncols; k++) {
+                MATD_EL(x, i, k) -= MATD_EL(u, j, i)*MATD_EL(x, j, k);
+            }
+        }
+        // x[i] = b[i] / L[i,i]
+        for (int k = 0; k < b->ncols; k++) {
+            MATD_EL(x, i, k) /= MATD_EL(u, i, i);
+        }
+    }
+
+    // solve Ux = y
+    for (int k = u->ncols-1; k >= 0; k--) {
+        double LUkk = 1.0 / MATD_EL(u, k, k);
+        for (int t = 0; t < b->ncols; t++)
+            MATD_EL(x, k, t) *= LUkk;
+
+        for (int i = 0; i < k; i++) {
+            double LUik = -MATD_EL(u, i, k);
+            for (int t = 0; t < b->ncols; t++)
+                MATD_EL(x, i, t) += MATD_EL(x, k, t) *LUik;
+        }
+    }
+
+    return x;
+}
+
+/*void matd_chol_solve(matd_chol_t *chol, const TYPE *b, TYPE *x)
+  {
+  matd_t *u = chol->u;
+
+  TYPE y[u->ncols];
+  matd_ltransposetriangle_solve(u, b, y);
+  matd_utriangle_solve(u, y, x);
+  }
+*/
+// only sensible on PSD matrices. had expected it to be faster than
+// inverse via LU... for now, doesn't seem to be.
+matd_t *matd_chol_inverse(matd_t *a)
+{
+    assert(a->nrows == a->ncols);
+
+    matd_chol_t *chol = matd_chol(a);
+
+    matd_t *eye = matd_identity(a->nrows);
+    matd_t *inv = matd_chol_solve(chol, eye);
+    matd_destroy(eye);
+    matd_chol_destroy(chol);
+
+    return inv;
+}
+
+double matd_max(matd_t *m)
+{
+    double d = -DBL_MAX;
+    for(int x=0; x<m->nrows; x++) {
+        for(int y=0; y<m->ncols; y++) {
+            if(MATD_EL(m, x, y) > d)
+                d = MATD_EL(m, x, y);
+        }
+    }
+
+    return d;
+}

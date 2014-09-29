@@ -256,9 +256,15 @@ state_destroy (state_t *state)
     if (!state)
         return;
 
-    free (state->vxeh);
-    getopt_destroy (state->gopt);
-    pg_destroy (state->pg);
+    if (state->vxeh)
+        free (state->vxeh);
+
+    if (state->gopt)
+        getopt_destroy (state->gopt);
+
+    if (state->pg)
+        pg_destroy (state->pg);
+
     free (state);
 }
 
@@ -275,8 +281,8 @@ main (int argc, char *argv[])
     // screen if required
     state->gopt = getopt_create ();
     getopt_add_bool   (state->gopt,  'h', "help", 0, "Show help");
-    getopt_add_bool   (state->gopt,  'l', "list", 0, "Lists available camera URLs and exit");
     getopt_add_string (state->gopt, '\0', "url", "", "Camera URL");
+    getopt_add_bool   (state->gopt,  'l', "list", 0, "Lists available camera URLs and exit");
 
     if (!getopt_parse (state->gopt, argc, argv, 1) || getopt_get_bool (state->gopt, "help")) {
         printf ("Usage: %s [--url=CAMERAURL] [other options]\n\n", argv[0]);
@@ -309,8 +315,10 @@ main (int argc, char *argv[])
         zarray_get (urls, 0, &state->img_url);
     }
 
-    if (getopt_get_bool (state->gopt, "list"))
+    if (getopt_get_bool (state->gopt, "list")) {
+        state_destroy (state);
         exit (EXIT_SUCCESS);
+    }
 
     // Initialize this application as a remote display source. This allows
     // you to use remote displays to render your visualization. Also starts up

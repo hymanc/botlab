@@ -275,6 +275,7 @@ main (int argc, char *argv[])
     // screen if required
     state->gopt = getopt_create ();
     getopt_add_bool   (state->gopt,  'h', "help", 0, "Show help");
+    getopt_add_bool   (state->gopt,  'l', "list", 0, "Lists available camera URLs and exit");
     getopt_add_string (state->gopt, '\0', "url", "", "Camera URL");
 
     if (!getopt_parse (state->gopt, argc, argv, 1) || getopt_get_bool (state->gopt, "help")) {
@@ -307,6 +308,9 @@ main (int argc, char *argv[])
 
         zarray_get (urls, 0, &state->img_url);
     }
+
+    if (getopt_get_bool (state->gopt, "list"))
+        exit (EXIT_SUCCESS);
 
     // Initialize this application as a remote display source. This allows
     // you to use remote displays to render your visualization. Also starts up

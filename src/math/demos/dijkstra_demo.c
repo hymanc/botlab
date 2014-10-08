@@ -37,11 +37,11 @@ main (int argc, char *argv[])
             printf ("\n");
         }
 
-        #if 0
+        #if 1
         printf ("\n");
         for (int j=0; j<n_nodes; j++) {
             int *path, *dist;
-            int path_len = dijkstra_get_path (graph, j, &path, &dist);
+            int path_len = dijkstra_get_path (graph, i, j, &path, &dist);
 
             for (int k=0; k < path_len; k++) {
                 const char *name = dijkstra_get_user (graph, path[k]);

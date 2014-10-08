@@ -543,6 +543,7 @@ gslu_vector_abs_alloc (gsl_vector *a)
 
     return b;
 }
+
 #ifdef __cplusplus
 }
 #endif

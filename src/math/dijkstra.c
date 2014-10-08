@@ -4,6 +4,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "dijkstra.h"
+
 #define MAX(a,b) (a > b ? a : b)
 
 typedef struct node node_t;
@@ -24,7 +26,6 @@ struct edge {
     int cost;          // edge cost
 };
 
-typedef struct dijkstra_graph dijkstra_graph_t;
 struct dijkstra_graph {
     node_t *nodes;      // 1D array of nodes
     node_t *nodes_cc;   // clean copy for initializing queries
@@ -229,25 +230,34 @@ dijkstra_calc_all (dijkstra_graph_t *graph, int src)
     memcpy (graph->nodes, graph->nodes_cc, graph->n_nodes * sizeof(node_t));
     node_t *start = graph->nodes + src, *lead;
 	set_dist (graph, start, start, 0);
-	while (lead = pop_queue (graph)) {
+	while ((lead = pop_queue (graph))) {
 		for (edge_t *e = lead->edge; e; e = e->sibling)
 			set_dist (graph, e->node, lead, lead->dist + e->cost);
     }
 }
 
 int
-dijkstra_get_path (dijkstra_graph_t *graph, int dest, int *_path[])
+dijkstra_get_path (dijkstra_graph_t *graph, int dest, int *_path[], int *_dist[])
 {
     int path_len = 1;
     for (node_t *node = graph->nodes + dest; node->via != node; node = node->via)
         path_len++;
 
     int *path = malloc (path_len * sizeof(int));
+    int *dist = NULL;
+    if (_dist)
+        dist = malloc (path_len * sizeof(int));
     node_t *node = graph->nodes + dest;
-    for (int i=path_len-1; i>=0; i--, node = node->via)
+    for (int i=path_len-1; i>=0; i--, node = node->via) {
         path[i] = node->id;
+        if (_dist)
+            dist[i] = node->dist;
+    }
 
     *_path = path;
+    if (_dist)
+        *_dist = dist;
+
     return path_len;
 }
 
@@ -264,49 +274,4 @@ dijkstra_print_path (dijkstra_graph_t *graph, int dest)
 		dijkstra_print_path (graph, node->via->id);
 		printf ("-> %d(%g) ", node->id, node->dist);
 	}
-}
-
-int
-main (int argc, char *argv[])
-{
-    const int n_nodes = ('f' - 'a' + 1);
-
-    dijkstra_graph_t *graph = dijkstra_create (n_nodes, 0);
-
-	for (int i=0; i<n_nodes; i++) {
-        char *name = calloc (4, sizeof(*name));
-        sprintf (name, "%c", 'a' + i);
-        dijkstra_set_user (graph, i, name);
-    }
-
-#define E(a, b, c) dijkstra_add_edge_undir (graph, (a - 'a'), (b - 'a'), c)
-	E('a', 'b', 4);	 E('a', 'c', 9);  E('a', 'f', 14);
-	E('b', 'c', 10); E('b', 'd', 15); E('c', 'd', 11);
-	E('c', 'f', 2);  E('d', 'e', 6);  E('e', 'f', 9);
-#undef E
-
-    for (int i=0; i<n_nodes; i++) {
-        printf ("\nnode id=%d user=%s\n", i, (char *) dijkstra_get_user (graph, i));
-        dijkstra_calc_all (graph, i);
-
-        for (int j=0; j<n_nodes; j++) {
-            dijkstra_print_path (graph, j);
-            printf ("\n");
-        }
-
-        printf ("\n");
-        for (int j=0; j<n_nodes; j++) {
-            int *path;
-            int path_len = dijkstra_get_path (graph, j, &path);
-
-            for (int k=0; k < path_len; k++)
-                printf ("%d-> ", path[k]);
-            printf ("\n");
-        }
-    }
-
-    // clean up
-    for (int i=0; i<dijkstra_n_nodes (graph); i++)
-        free (dijkstra_get_user (graph, i));
-    dijkstra_destroy (graph);
 }

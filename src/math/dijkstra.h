@@ -42,17 +42,21 @@ dijkstra_n_nodes (dijkstra_graph_t *graph);
 int
 dijkstra_n_edges (dijkstra_graph_t *graph);
 
-/* does a Dijkstra search over the graph emanating from the src to all destination nodes */
+/* does a Dijkstra shortest path search over the graph emanating from the src to all destination nodes */
 void
 dijkstra_calc_all (dijkstra_graph_t *graph, int src);
 
-/* returns the path from src, as calculated in dijkstra_calc_all(), to dest */
-int
-dijkstra_get_path (dijkstra_graph_t *graph, int dest, int *_path[], int *_dist[]);
-
-/* prints the path from src, as calculated in dijkstra_calc_all(), to dest */
+/* does a Dijkstra shortest path search from src to dest nodes */
 void
-dijkstra_print_path (dijkstra_graph_t *graph, int dest);
+dijkstra_calc_dest (dijkstra_graph_t *graph, int src, int dest);
+
+/* returns the path from src to dest */
+int
+dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int *_path[], int *_dist[]);
+
+/* prints the path from src to dest */
+void
+dijkstra_print_path (dijkstra_graph_t *graph, int src, int dest);
 
 #ifdef __cplusplus
 }

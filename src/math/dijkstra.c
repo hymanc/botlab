@@ -1,3 +1,7 @@
+/* Adapted from rosetta code example
+ * http://rosettacode.org/wiki/Dijkstra's_algorithm#C
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -38,7 +42,8 @@ struct dijkstra_graph {
     int block_size;     // number of edges to allocate at a time
     int n_edges;        // number of edges
 
-    int src;            // current source from which all paths originate from
+    int src;            // node id from which all paths originate from
+    int dest;           // node id of destination, or -1 if all paths have been searched
 
     // --- priority queue stuff ---
     node_t **heap;
@@ -153,6 +158,7 @@ dijkstra_add_edge (dijkstra_graph_t *graph, int i, int j, double d)
 {
     assert (graph);
     assert (!graph->initialized);
+    assert (d > 0);
 
     /* Don't mind the memory management stuff, they are besides the point. Pretend
        edge_next = malloc (sizeof(edge_t)) */
@@ -223,8 +229,16 @@ dijkstra_calc_all (dijkstra_graph_t *graph, int src)
         graph->initialized = 1;
     }
 
-    if (graph->src == src)
+    if (graph->src == src && graph->dest == -1)
         return; // we've already computed this
+
+    graph->src = src;
+    graph->dest = -1;
+
+    // reset the heap
+    memset (graph->heap, 0, graph->n_nodes*sizeof (node_t *));
+    graph->heap_len = 0;
+    graph->heap_idx = 0;
 
     // --- Dijkstra stuff; unreachable nodes will never make into the queue ---
     memcpy (graph->nodes, graph->nodes_cc, graph->n_nodes * sizeof(node_t));
@@ -236,9 +250,47 @@ dijkstra_calc_all (dijkstra_graph_t *graph, int src)
     }
 }
 
-int
-dijkstra_get_path (dijkstra_graph_t *graph, int dest, int *_path[], int *_dist[])
+void
+dijkstra_calc_dest (dijkstra_graph_t *graph, int src, int dest)
 {
+    assert (graph);
+
+    if (!graph->initialized) {
+        memcpy (graph->nodes_cc, graph->nodes, graph->n_nodes * sizeof(node_t));
+        graph->initialized = 1;
+    }
+
+    if (graph->src == src && graph->dest == dest)
+        return; // we've already computed this
+
+    graph->src = src;
+    graph->dest = dest;
+
+    // reset the heap
+    memset (graph->heap, 0, graph->n_nodes*sizeof (node_t *));
+    graph->heap_len = 0;
+    graph->heap_idx = 0;
+
+    // --- Dijkstra stuff; unreachable nodes will never make into the queue ---
+    memcpy (graph->nodes, graph->nodes_cc, graph->n_nodes * sizeof(node_t));
+    node_t *start = graph->nodes + src, *goal = graph->nodes + dest, *lead;
+	set_dist (graph, start, start, 0);
+	while ((lead = pop_queue (graph)) && lead != goal) {
+		for (edge_t *e = lead->edge; e; e = e->sibling)
+			set_dist (graph, e->node, lead, lead->dist + e->cost);
+    }
+}
+
+int
+dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int *_path[], int *_dist[])
+{
+    if (!(graph->src == src && (graph->dest == dest || graph->dest == -1))) {
+        fprintf (stderr, "error: [graph->src=%d, graph->dest=%d], [src=%d, dest=%d]\n",
+                 graph->src, graph->dest, src, dest);
+        assert (graph->src == src && (graph->dest == dest || graph->dest == -1));
+        exit (EXIT_FAILURE);
+    }
+
     int path_len = 1;
     for (node_t *node = graph->nodes + dest; node->via != node; node = node->via)
         path_len++;
@@ -262,7 +314,7 @@ dijkstra_get_path (dijkstra_graph_t *graph, int dest, int *_path[], int *_dist[]
 }
 
 void
-dijkstra_print_path (dijkstra_graph_t *graph, int dest)
+print_path (dijkstra_graph_t *graph, int src, int dest)
 {
     node_t *node = graph->nodes + dest;
 
@@ -271,7 +323,20 @@ dijkstra_print_path (dijkstra_graph_t *graph, int dest)
 	else if (!node->via)
 		printf ("%d(unreached)", node->id);
 	else {
-		dijkstra_print_path (graph, node->via->id);
+		print_path (graph, node->id, node->via->id);
 		printf ("-> %d(%g) ", node->id, node->dist);
 	}
+}
+
+void
+dijkstra_print_path (dijkstra_graph_t *graph, int src, int dest)
+{
+    if (!(graph->src == src && (graph->dest == dest || graph->dest == -1))) {
+        fprintf (stderr, "error: [graph->src=%d, graph->dest=%d], [src=%d, dest=%d]\n",
+                 graph->src, graph->dest, src, dest);
+        assert (graph->src == src && (graph->dest == dest || graph->dest == -1));
+        exit (EXIT_FAILURE);
+    }
+
+    print_path (graph, src, dest);
 }

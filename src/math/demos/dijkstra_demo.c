@@ -23,28 +23,37 @@ main (int argc, char *argv[])
 #undef E
 
     for (int i=0; i<n_nodes; i++) {
-        printf ("\nsrc=%d\n", i);
+
+        printf ("\nsrc=%d, dest=%d\n", i, 3);
+        printf ("------------------------------\n");
+        dijkstra_calc_dest (graph, i, 3);
+        dijkstra_print_path (graph, i, 3);
+
+        printf ("\n\nsrc=%d, dest=all\n", i);
         printf ("------------------------------\n");
         dijkstra_calc_all (graph, i);
-
         for (int j=0; j<n_nodes; j++) {
-            dijkstra_print_path (graph, j);
+            dijkstra_print_path (graph, i, j);
             printf ("\n");
         }
 
+        #if 0
         printf ("\n");
         for (int j=0; j<n_nodes; j++) {
             int *path, *dist;
             int path_len = dijkstra_get_path (graph, j, &path, &dist);
 
             for (int k=0; k < path_len; k++) {
+                const char *name = dijkstra_get_user (graph, path[k]);
+
                 if (k==0)
-                    printf ("%d(%d)", path[k], dist[k]);
+                    printf ("%s(%d)", name, dist[k]);
                 else
-                    printf ("-> %d(%d)", path[k], dist[k]);
+                    printf ("-> %s(%d)", name, dist[k]);
             }
             printf ("\n");
         }
+        #endif
     }
 
     // clean up

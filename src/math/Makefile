@@ -8,6 +8,7 @@ LIB_MATH = $(LIB_PATH)/libmath.a
 LIBMATH_OBJS = \
 	april_graph.o \
 	dm.o \
+	dijkstra.o \
 	exact_minimum_degree.o \
 	fasttrig.o \
 	gps_linearize.o \

@@ -10,8 +10,9 @@ BIN_SO3_DEMO = so3_demo
 BIN_SSC_DEMO = ssc_demo
 BIN_HOMOGENOUS_DEMO = homogenous_demo
 BIN_PLANE_DEMO = plane_demo
+BIN_DIJKSTRA_DEMO = dijkstra_demo
 
-ALL = $(BIN_GSLU_DEMO) $(BIN_FASTTRIG_DEMO) $(BIN_SO3_DEMO) $(BIN_SSC_DEMO) $(BIN_HOMOGENOUS_DEMO) $(BIN_PLANE_DEMO)
+ALL = $(BIN_GSLU_DEMO) $(BIN_FASTTRIG_DEMO) $(BIN_SO3_DEMO) $(BIN_SSC_DEMO) $(BIN_HOMOGENOUS_DEMO) $(BIN_PLANE_DEMO) $(BIN_DIJKSTRA_DEMO)
 
 all: $(ALL)
 
@@ -36,6 +37,10 @@ $(BIN_HOMOGENOUS_DEMO): homogenous_demo.o $(LIBDEPS)
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
 $(BIN_PLANE_DEMO): plane_demo.o $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS)
+
+$(BIN_DIJKSTRA_DEMO): dijkstra_demo.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 

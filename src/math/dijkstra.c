@@ -17,7 +17,7 @@ typedef struct edge edge_t;
 
 struct node {
     edge_t *edge; // singly linked list of edges
-    node_t *via;  // where previous node is in shortest path
+    node_t *via;  // backpointer in shortest path
     double  dist; // distance from originating node
     int     id;   // node integer id
     void   *user; // user value
@@ -27,18 +27,18 @@ struct node {
 struct edge {
     node_t *node;      // target of this edge
     edge_t *sibling;   // for singly linked list
-    int cost;          // edge cost
+    int weight;        // edge weight
 };
 
 struct dijkstra_graph {
     node_t *nodes;      // 1D array of nodes
     node_t *nodes_cc;   // clean copy for initializing queries
     int n_nodes;        // number of nodes
-    bool initialized ;  /* 0 need to copy nodes
+    bool initialized ;  /* 0 need to create a clean copy of nodes
                            1 graph structure is locked */
 
-    edge_t *edge_root;  // pointer to queue of edges
-    edge_t *edge_next;  // next edge on the queue
+    edge_t *edge_root;  // pointer to edge pool
+    edge_t *edge_next;  // next edge to pull from the pool
     int block_size;     // number of edges to allocate at a time
     int n_edges;        // number of edges
 
@@ -63,7 +63,6 @@ set_dist (dijkstra_graph_t *graph, node_t *node, node_t *via, double d)
 	// find existing heap entry, or create a new one
 	node->dist = d;
 	node->via = via;
-
 	int i = node->heap_idx;
 	if (!i)
         i = ++graph->heap_len;
@@ -71,7 +70,6 @@ set_dist (dijkstra_graph_t *graph, node_t *node, node_t *via, double d)
 	// upheap
 	for (int j; i > 1 && node->dist < graph->heap[j = i/2]->dist; i = j)
 		(graph->heap[i] = graph->heap[j])->heap_idx = i;
-
 	graph->heap[i] = node;
 	node->heap_idx = i;
 }
@@ -174,7 +172,7 @@ dijkstra_add_edge (dijkstra_graph_t *graph, int i, int j, double d)
     node_t *b = graph->nodes + j;
 
     edge->node = b;
-    edge->cost = d;
+    edge->weight = d;
     edge->sibling = a->edge;
     a->edge = edge;
 
@@ -246,7 +244,7 @@ dijkstra_calc_all (dijkstra_graph_t *graph, int src)
 	set_dist (graph, start, start, 0);
 	while ((lead = pop_queue (graph))) {
 		for (edge_t *e = lead->edge; e; e = e->sibling)
-			set_dist (graph, e->node, lead, lead->dist + e->cost);
+			set_dist (graph, e->node, lead, lead->dist + e->weight);
     }
 }
 
@@ -277,7 +275,7 @@ dijkstra_calc_dest (dijkstra_graph_t *graph, int src, int dest)
 	set_dist (graph, start, start, 0);
 	while ((lead = pop_queue (graph)) && lead != goal) {
 		for (edge_t *e = lead->edge; e; e = e->sibling)
-			set_dist (graph, e->node, lead, lead->dist + e->cost);
+			set_dist (graph, e->node, lead, lead->dist + e->weight);
     }
 }
 

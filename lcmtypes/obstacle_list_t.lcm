@@ -1,0 +1,5 @@
+struct obstacle_list_t
+{
+    int32_t len;
+    obstacle_t obstacles[len];
+}

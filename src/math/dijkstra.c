@@ -27,7 +27,7 @@ struct node {
 struct edge {
     node_t *node;      // target of this edge
     edge_t *sibling;   // for singly linked list
-    int weight;        // edge weight
+    double weight;     // edge weight
 };
 
 struct dijkstra_graph {
@@ -280,7 +280,7 @@ dijkstra_calc_dest (dijkstra_graph_t *graph, int src, int dest)
 }
 
 int
-dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int *_path[], int *_dist[])
+dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int **_path, double **_dist)
 {
     if (!(graph->src == src && (graph->dest == dest || graph->dest == -1))) {
         fprintf (stderr, "error: [graph->src=%d, graph->dest=%d], [src=%d, dest=%d]\n",
@@ -293,10 +293,10 @@ dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int *_path[], int
     for (node_t *node = graph->nodes + dest; node->via != node; node = node->via)
         path_len++;
 
-    int *path = malloc (path_len * sizeof(int));
-    int *dist = NULL;
+    int *path = malloc (path_len * sizeof(*path));
+    double *dist = NULL;
     if (_dist)
-        dist = malloc (path_len * sizeof(int));
+        dist = malloc (path_len * sizeof(*dist));
     node_t *node = graph->nodes + dest;
     for (int i=path_len-1; i>=0; i--, node = node->via) {
         path[i] = node->id;

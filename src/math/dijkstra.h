@@ -52,7 +52,7 @@ dijkstra_calc_dest (dijkstra_graph_t *graph, int src, int dest);
 
 /* returns the path from src to dest */
 int
-dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int *_path[], int *_dist[]);
+dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int **path, double **dist);
 
 /* prints the path from src to dest */
 void

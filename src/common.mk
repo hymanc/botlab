@@ -171,15 +171,15 @@ LDFLAGS_ROB550 := -L$(LIB_PATH) -lrob550 $(LDFLAGS_VX_GTK) $(LDFLAGS_IMAGESOURCE
 ############################################################
 
 %.o: %.c %.h
-	@echo "\t$@"
+	@echo "    $@"
 	@$(CC) $(CFLAGS) -c $<
 
 %.o: %.c
-	@echo "\t$@"
+	@echo "    $@"
 	@$(CC) $(CFLAGS) -c $<
 
 %.o: %.cpp
-	@echo "\t$@"
+	@echo "    $@"
 	@g++ -c -o $@ $< $(CFLAGS_CXX)
 
 

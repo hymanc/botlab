@@ -22,7 +22,7 @@ struct image_u32 {
 // efficient by loading an entire pixel into a single uint32_t. This
 // raises a number of endian-ness and format issues.
 //
-// The SUPPORTED format is byte-ordered: R, G, B, A. Whether the R
+// The SUPPORTED format is byte-ordered: A, B, G, R. Whether the R
 // channel ends up mapped to high-order bits or low-order bits depends
 // on the endianness of your platform..
 //

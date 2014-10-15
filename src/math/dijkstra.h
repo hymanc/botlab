@@ -25,11 +25,17 @@ dijkstra_add_edge (dijkstra_graph_t *graph, int i, int j, double d);
 void
 dijkstra_add_edge_undir (dijkstra_graph_t *graph, int i, int j, double d);
 
-/* assign a user allocated pointer to node i */
+/* gets edge weight from node i to node j
+   returns < 0 if no such edge exists
+ */
+double
+dijkstra_get_edge_weight (dijkstra_graph_t *graph, int i, int j);
+
+/* assigns a user allocated pointer to node i */
 void
 dijkstra_set_user (dijkstra_graph_t *graph, int i, void *user);
 
-/* retrieve user allocated pointer from node i */
+/* retrieves user allocated pointer from node i */
 void *
 dijkstra_get_user (dijkstra_graph_t *graph, int i);
 

@@ -187,6 +187,21 @@ dijkstra_add_edge_undir (dijkstra_graph_t *graph, int i, int j, double d)
     dijkstra_add_edge (graph, j, i, d);
 }
 
+double
+dijkstra_get_edge_weight (dijkstra_graph_t *graph, int i, int j)
+{
+    assert (graph);
+    node_t *a = graph->nodes + i;
+    node_t *b = graph->nodes + j;
+
+    for (edge_t *e = a->edge; e; e = e->sibling) {
+        if (e->node == b)
+            return e->weight;
+    }
+
+    return -1.0;
+}
+
 void
 dijkstra_set_user (dijkstra_graph_t *graph, int i, void *user)
 {

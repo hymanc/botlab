@@ -1,147 +1,129 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 
 #include "types.h"
 
-void
-serialize_state(state_t *state, void *buf)
+void serialize_state(state_t* state, void* vbuf)
 {
-    int64_t  *b64  = buf;
-    int32_t  *b32  = buf;
-    int16_t  *b16  = buf;
-    uint16_t *bu16 = buf;
-    uint8_t  *bu8  = buf;
+    uint8_t* buf = (uint8_t*)vbuf;
 
-    b64[0] = state->utime;
+    write64(buf +  0, state->utime);
 
-    b32[2] = state->encoder_left_ticks;
-    b32[3] = state->encoder_right_ticks;
+    write32(buf +  8, state->encoder_left_ticks);
+    write32(buf + 12, state->encoder_right_ticks);
 
-    b16[8] = state->motor_left_speed_cmd;
-    b16[9] = state->motor_right_speed_cmd;
+    write16(buf + 16, state->motor_left_speed_cmd);
+    write16(buf + 18, state->motor_right_speed_cmd);
 
-    b16[10] = state->accel[0];
-    b16[11] = state->accel[1];
-    b16[12] = state->accel[2];
-    b16[13] = state->gyro[0];
-    b16[14] = state->gyro[1];
-    b16[15] = state->gyro[2];
+    write16(buf + 20, state->accel[0]);
+    write16(buf + 22, state->accel[1]);
+    write16(buf + 24, state->accel[2]);
+    write16(buf + 26, state->gyro[0]);
+    write16(buf + 28, state->gyro[1]);
+    write16(buf + 30, state->gyro[2]);
 
-    b64[4] = state->gyro_int[0];
-    b64[5] = state->gyro_int[1];
-    b64[6] = state->gyro_int[2];
+    write64(buf + 32, state->gyro_int[0]);
+    write64(buf + 40, state->gyro_int[1]);
+    write64(buf + 48, state->gyro_int[2]);
 
-    bu16[28] = state->line_sensors[0];
-    bu16[29] = state->line_sensors[1];
-    bu16[30] = state->line_sensors[2];
+    writeu16(buf + 56, state->line_sensors[0]);
+    writeu16(buf + 58, state->line_sensors[1]);
+    writeu16(buf + 60, state->line_sensors[2]);
 
-    bu16[31] = state->range;
+    writeu16(buf + 62, state->range);
 
-    bu16[32] = state->motor_current_left;
-    bu16[33] = state->motor_current_right;
+    writeu16(buf + 64, state->motor_current_left);
+    writeu16(buf + 66, state->motor_current_right);
 
-    bu8[68] = state->pwm_prea;
-    bu8[69] = state->pwm_diva;
-    bu16[35] = state->pwm_prd;
+    writeu8(buf + 68, state->pwm_prea);
+    writeu8(buf + 69, state->pwm_diva);
+    writeu16(buf + 70, state->pwm_prd);
 
-    bu8[72] = state->flags;
+    writeu8(buf + 72, state->flags);
 
     return;
 }
 
-void
-deserialize_state (void *buf, state_t *state)
+void deserialize_state(void* vbuf, state_t* state)
 {
-    int64_t  *b64  = buf;
-    int32_t  *b32  = buf;
-    int16_t  *b16  = buf;
-    uint16_t *bu16 = buf;
-    uint8_t  *bu8  = buf;
+    uint8_t* buf = (uint8_t*)vbuf;
 
-    state->utime = b64[0];
+    state->utime = read64(buf + 0);
 
-    state->encoder_left_ticks = b32[2];
-    state->encoder_right_ticks = b32[3];
+    state->encoder_left_ticks = read32(buf + 8);
+    state->encoder_right_ticks = read32(buf + 12);
 
-    state->motor_left_speed_cmd  = b16[8];
-    state->motor_right_speed_cmd = b16[9];
+    state->motor_left_speed_cmd  = read16(buf + 16);
+    state->motor_right_speed_cmd = read16(buf + 18);
 
-    state->accel[0] = b16[10];
-    state->accel[1] = b16[11];
-    state->accel[2] = b16[12];
-    state->gyro[0]  = b16[13];
-    state->gyro[1]  = b16[14];
-    state->gyro[2]  = b16[15];
+    state->accel[0] = read16(buf + 20);
+    state->accel[1] = read16(buf + 22);
+    state->accel[2] = read16(buf + 24);
+    state->gyro[0]  = read16(buf + 26);
+    state->gyro[1]  = read16(buf + 28);
+    state->gyro[2]  = read16(buf + 30);
 
-    state->gyro_int[0] = b64[4];
-    state->gyro_int[1] = b64[5];
-    state->gyro_int[2] = b64[6];
+    state->gyro_int[0] = read64(buf + 32);
+    state->gyro_int[1] = read64(buf + 40);
+    state->gyro_int[2] = read64(buf + 48);
 
-    state->line_sensors[0] = bu16[28];
-    state->line_sensors[1] = bu16[29];
-    state->line_sensors[2] = bu16[30];
+    state->line_sensors[0] = readu16(buf + 56);
+    state->line_sensors[1] = readu16(buf + 58);
+    state->line_sensors[2] = readu16(buf + 60);
 
-    state->range = bu16[31];
+    state->range = readu16(buf + 62);
 
-    state->motor_current_left = bu16[32];
-    state->motor_current_right = bu16[33];
+    state->motor_current_left = readu16(buf + 64);
+    state->motor_current_right = readu16(buf + 66);
 
-    state->pwm_prea = bu8[68];
-    state->pwm_diva = bu8[69];
-    state->pwm_prd = bu16[35];
+    state->pwm_prea = readu8(buf + 68);
+    state->pwm_diva = readu8(buf + 69);
+    state->pwm_prd = readu16(buf + 70);
 
-    state->flags = bu8[72];
+    state->flags = readu8(buf + 72);
 
     return;
 }
 
-void
-serialize_command (command_t *command, void *buf)
+void serialize_command(command_t* command, void* vbuf)
 {
-    int16_t *bu16 = buf;
-    uint8_t *bu8  = buf;
+    uint8_t*  buf  = (uint8_t*)vbuf;
 
-    bu16[0] = command->motor_left_speed;
-    bu16[1] = command->motor_right_speed;
+    writeu16(buf + 0, command->motor_left_speed);
+    writeu16(buf + 2, command->motor_right_speed);
 
-    bu8[4] = command->pwm_prea;
-    bu8[5] = command->pwm_diva;
-    bu16[3] = command->pwm_prd;
+    writeu8(buf + 4, command->pwm_prea);
+    writeu8(buf + 5, command->pwm_diva);
+    writeu16(buf + 6, command->pwm_prd);
 
-    bu8[8] = command->flags;
+    writeu8(buf + 8,  command->flags);
 
     return;
 }
 
-void
-deserialize_command (void *buf, command_t *command)
+void deserialize_command(void* vbuf, command_t* command)
 {
-    int16_t *bu16 = buf;
-    uint8_t *bu8  = buf;
+    uint8_t* buf = (uint8_t*)vbuf;
 
-    command->motor_left_speed = bu16[0];
-    command->motor_right_speed = bu16[1];
+    command->motor_left_speed = readu16(buf + 0);
+    command->motor_right_speed = readu16(buf + 2);
 
-    command->pwm_prea = bu8[36];
-    command->pwm_diva = bu8[37];
-    command->pwm_prd = bu16[19];
+    command->pwm_prea = readu8(buf + 4);
+    command->pwm_diva = readu8(buf + 5);
+    command->pwm_prd = readu16(buf + 6);
 
-    command->flags = bu8[8];
+    command->flags = readu8(buf + 8);
 
     return;
 }
 
 
-uint8_t
-calc_checksum (uint8_t *buf, uint32_t len)
+uint8_t calc_checksum(uint8_t* buf, uint32_t len)
 {
-    if (len <= 0)
-        return 0;
-
+    if(len <= 0) return 0;
     uint8_t checksum = buf[0];
-    for (uint32_t i = 1; i < len; i++)
+    uint32_t i;
+    for(i = 1; i < len; i++)
+    {
         checksum = checksum ^ buf[i];
-
+    }
     return checksum;
 }

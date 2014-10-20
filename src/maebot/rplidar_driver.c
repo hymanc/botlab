@@ -43,9 +43,15 @@ static void* scan_loop(void *args)
     state_t *state = (state_t*)args;
 
     printf("Beginning scans...\n");
+    if (system("echo 1 > /sys/class/gpio/gpio122/value") == -1) {
+      printf("Error starting rplidar motor\n");
+    }
     // This loops forever, barring an error
     rp_lidar_scan(state->dev, state->lcm, state->channel);
     printf("Terminating rplidar...\n");
+    if (system("echo 0 > /sys/class/gpio/gpio122/value") == -1) {
+      printf("Error Stopping rplidar motor\n");
+    }
 
     return NULL;
 }
@@ -56,7 +62,7 @@ int main(int argc, char* argv[])
 
     state->gopt = getopt_create();
     getopt_add_bool(state->gopt, 'h', "help", 0, "Show this help screen");
-    getopt_add_string(state->gopt, 'd', "device", "/dev/ttyUSB0", "Serial device");
+    getopt_add_string(state->gopt, 'd', "device", "/dev/ttyO0", "Serial device");
     getopt_add_int(state->gopt, 'b', "baud", "115200", "Baud rate");
     getopt_add_string(state->gopt, 'c', "channel", "LASER", "LCM channel name");
 

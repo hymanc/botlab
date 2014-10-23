@@ -12,3 +12,11 @@ chmod -R  775  $LASER
 echo "out" > $LASER/direction
 echo "0" > $LASER/active_low
 echo "0" > $LASER/value
+
+# setup user button pin
+echo 174 > /sys/class/gpio/export
+USR_BTN=/sys/class/gpio/gpio174
+chgrp -HR gpio $USR_BTN
+chmod -R  775  $USR_BTN
+echo "in" > $USR_BTN/direction
+echo "1" > $USR_BTN/active_low

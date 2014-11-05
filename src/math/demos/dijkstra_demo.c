@@ -6,7 +6,7 @@
 int
 main (int argc, char *argv[])
 {
-    const int n_nodes = ('f' - 'a' + 1);
+    const int n_nodes = ('g' - 'a' + 1);
 
     dijkstra_graph_t *graph = dijkstra_create (n_nodes, 0);
 
@@ -20,8 +20,8 @@ main (int argc, char *argv[])
 	E('a', 'b', 4);	 E('a', 'c', 9);  E('a', 'f', 14);
 	E('b', 'c', 10); E('b', 'd', 15);
     E('c', 'd', 11); E('c', 'f', 2);
-    //E('d', 'e', 6);
-    //E('e', 'f', 9);
+    E('d', 'e', 6);
+    E('e', 'f', 9);
 #undef E
 
     for (int i=0; i<n_nodes; i++) {

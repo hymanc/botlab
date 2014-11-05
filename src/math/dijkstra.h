@@ -52,11 +52,14 @@ dijkstra_n_edges (dijkstra_graph_t *graph);
 void
 dijkstra_calc_all (dijkstra_graph_t *graph, int src);
 
-/* does a Dijkstra shortest path search from src to dest nodes */
+/* does a Dijkstra shortest path search from src to dest */
 void
 dijkstra_calc_dest (dijkstra_graph_t *graph, int src, int dest);
 
-/* returns the path from src to dest */
+/* queries the path from src to dest: must have called dijkstra_calc_all() or dijkstra_calc_dest() prior to
+   returns -1 if no path exists
+   returns number of elements in path upon success
+ */
 int
 dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int **path, double **dist);
 

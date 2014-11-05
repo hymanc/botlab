@@ -18,8 +18,10 @@ main (int argc, char *argv[])
 
 #define E(a, b, c) dijkstra_add_edge_undir (graph, (a - 'a'), (b - 'a'), c)
 	E('a', 'b', 4);	 E('a', 'c', 9);  E('a', 'f', 14);
-	E('b', 'c', 10); E('b', 'd', 15); E('c', 'd', 11);
-	E('c', 'f', 2);  E('d', 'e', 6);  E('e', 'f', 9);
+	E('b', 'c', 10); E('b', 'd', 15);
+    E('c', 'd', 11); E('c', 'f', 2);
+    //E('d', 'e', 6);
+    //E('e', 'f', 9);
 #undef E
 
     for (int i=0; i<n_nodes; i++) {
@@ -43,6 +45,10 @@ main (int argc, char *argv[])
             int *path;
             double *dist;
             int path_len = dijkstra_get_path (graph, i, j, &path, &dist);
+            if (path_len < 0) {
+                const char *name = dijkstra_get_user (graph, j);
+                printf ("%s(unreached)", name);
+            }
 
             for (int k=0; k < path_len; k++) {
                 const char *name = dijkstra_get_user (graph, path[k]);

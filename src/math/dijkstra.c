@@ -305,8 +305,12 @@ dijkstra_get_path (dijkstra_graph_t *graph, int src, int dest, int **_path, doub
     }
 
     int path_len = 1;
-    for (node_t *node = graph->nodes + dest; node->via != node; node = node->via)
-        path_len++;
+    for (node_t *node = graph->nodes + dest; node->via != node; node = node->via) {
+        if (!node->via)
+            return -1; // dest unreachable
+        else
+            path_len++;
+    }
 
     int *path = malloc (path_len * sizeof(*path));
     double *dist = NULL;

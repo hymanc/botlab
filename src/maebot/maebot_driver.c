@@ -37,9 +37,20 @@
 	#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
 
-
 const uint32_t HEADER_BYTES = 12;
 const uint32_t UART_MAGIC_NUMBER = 0xFDFDFDFD;  // Marks Beginning of Message
+
+/* Reads the value of the gpio value file and returns a boolean 0 or 1 */
+static unsigned char _read_gpio(int fd)
+{
+	char c;
+	lseek(fd, 0, SEEK_SET);
+	if (read(fd, &c, 1) != 1) {
+	  printf("error reading gpio\r\n");
+	  return 0;
+	};
+	return (c == '1');
+}
 
 
 typedef struct maebot_shared_state {
@@ -231,6 +242,11 @@ sama5_state_thread (void *arg)
 {
 	state_t state;
 
+        int user_button = open("/sys/class/gpio/gpio174/value", O_RDONLY);
+	if (user_button < 0) {
+		printf("Error opening file: %m\n");
+	}
+
 	while(1) {
 		// Telemetry handling
 		state = get_state (port);
@@ -277,6 +293,8 @@ sama5_state_thread (void *arg)
 		shared_state.motor_feedback.motor_current_left = state.motor_current_left;
 		shared_state.motor_feedback.motor_current_right = state.motor_current_right;
 		shared_state.sensor_data.power_button_pressed = state.flags & flags_power_button_mask;
+
+		shared_state.sensor_data.user_button_pressed = _read_gpio(user_button);
 
 		maebot_motor_feedback_t_publish (lcm, "MAEBOT_MOTOR_FEEDBACK", &shared_state.motor_feedback);
 		maebot_sensor_data_t_publish (lcm, "MAEBOT_SENSOR_DATA", &shared_state.sensor_data);

@@ -20,3 +20,12 @@ chgrp -HR gpio $USR_BTN
 chmod -R  775  $USR_BTN
 echo "in" > $USR_BTN/direction
 echo "1" > $USR_BTN/active_low
+
+# setep lidar motor pin
+echo 122 > /sys/class/gpio/export
+LIDAR=/sys/class/gpio/gpio122
+chgrp -HR gpio $LIDAR
+chmod -R  775  $LIDAR
+echo "out" > $LIDAR/direction
+echo "0" > $LIDAR/active_low
+echo "0" > $LIDAR/value

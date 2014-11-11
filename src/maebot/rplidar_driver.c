@@ -28,7 +28,7 @@ typedef struct state
     pthread_t stop_thread;
 
     // LCM stuff
-    char *channel;
+    const char *channel;
     lcm_t *lcm;
 } state_t;
 static state_t *state;
@@ -43,13 +43,13 @@ static void* scan_loop(void *args)
     state_t *state = (state_t*)args;
 
     printf("Beginning scans...\n");
-    if (system("echo 1 > /sys/class/gpio/gpio122/value") == -1) {
+    if (system("echo 1 > /sys/class/gpio/gpio122/value")) {
       printf("Error starting rplidar motor\n");
     }
     // This loops forever, barring an error
     rp_lidar_scan(state->dev, state->lcm, state->channel);
     printf("Terminating rplidar...\n");
-    if (system("echo 0 > /sys/class/gpio/gpio122/value") == -1) {
+    if (system("echo 0 > /sys/class/gpio/gpio122/value")) {
       printf("Error Stopping rplidar motor\n");
     }
 
@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     signal(SIGINT, sig_handler);
 
     // Open device
-    char *name = getopt_get_string(state->gopt, "device");
+    const char *name = getopt_get_string(state->gopt, "device");
     int baud = getopt_get_int(state->gopt, "baud");
     state->dev = serial_open(name, baud, 1);
 

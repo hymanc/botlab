@@ -18,8 +18,8 @@
 
 #include "lcmtypes/maebot_diff_drive_t.h"
 
-#define MAX_REVERSE_SPEED -1.0f
-#define MAX_FORWARD_SPEED 1.0f
+#define MAX_REVERSE_SPEED -0.1f
+#define MAX_FORWARD_SPEED 0.1f
 
 typedef struct
 {
@@ -152,20 +152,20 @@ static int key_event (vx_event_handler_t * vh, vx_layer_t * vl, vx_key_event_t *
 
     pthread_mutex_lock(&state->cmd_mutex);
     if (!key->released) {
-        if (key->key_code == 'w' || key->key_code == 'W') {
+        if (key->key_code == 'w' || key->key_code == 'W' || key->key_code == VX_KEY_UP) {
             // forward
             state->cmd.motor_left_speed = MAX_FORWARD_SPEED;
             state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
-        } else if (key->key_code == 'a' || key->key_code == 'A' ) {
+        } else if (key->key_code == 'a' || key->key_code == 'A' || key->key_code == VX_KEY_LEFT) {
             // turn left
             state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
             state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
 
-        } else if (key->key_code == 's' || key->key_code == 'S') {
+        } else if (key->key_code == 's' || key->key_code == 'S' || key->key_code == VX_KEY_DOWN) {
             // reverse
             state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
             state->cmd.motor_right_speed = MAX_REVERSE_SPEED;
-        } else if (key->key_code == 'd' || key->key_code == 'D') {
+        } else if (key->key_code == 'd' || key->key_code == 'D' || key->key_code == VX_KEY_RIGHT) {
             // turn right
             state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
             state->cmd.motor_right_speed = MAX_FORWARD_SPEED;

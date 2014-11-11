@@ -96,7 +96,7 @@ void rp_lidar_reset(int dev)
     send_command_raw(dev, REQUEST_RESET, NULL, 0);
 }
 
-void rp_lidar_scan(int dev, lcm_t *lcm, char *channel)
+void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
 {
     send_command_raw(dev, REQUEST_SCAN, NULL, 0);
 
@@ -108,7 +108,7 @@ void rp_lidar_scan(int dev, lcm_t *lcm, char *channel)
         return;
     }
 
-    float d2r = 2*M_PI/360;
+    float d2r = 2.0f*M_PI/360.0f;
 
     // Gather information forever and broadcast complete scans
     // Scan packets are 5 bytes
@@ -167,7 +167,7 @@ void rp_lidar_scan(int dev, lcm_t *lcm, char *channel)
     halt = 0;
 }
 
-void rp_lidar_force_scan(int dev, lcm_t *lcm, char *channel)
+void rp_lidar_force_scan(int dev, lcm_t *lcm, const char *channel)
 {
     printf("NOT FULLY IMPLEMENTED\n");
     send_command_raw(dev, REQUEST_FORCE_SCAN, NULL, 0);

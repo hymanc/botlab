@@ -157,6 +157,7 @@ dijkstra_add_edge (dijkstra_graph_t *graph, int i, int j, double d)
     assert (graph);
     assert (!graph->initialized);
     assert (d > 0);
+    assert (i < graph->n_nodes && j < graph->n_nodes);
 
     /* Don't mind the memory management stuff, they are besides the point. Pretend
        edge_next = malloc (sizeof(edge_t)) */

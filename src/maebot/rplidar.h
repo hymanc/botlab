@@ -52,10 +52,10 @@ void rp_lidar_stop(int dev);
 void rp_lidar_reset(int dev);
 
 /* Scan when ready */
-void rp_lidar_scan(int dev, lcm_t *lcm, char *channel);
+void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel);
 
 /* Force a scan regardless of rotation speed */
-void rp_lidar_force_scan(int dev, lcm_t *lcm, char *channel);
+void rp_lidar_force_scan(int dev, lcm_t *lcm, const char *channel);
 
 /* Check the information for the device (serial #, etc) and print it to term */
 void rp_lidar_check_info(int dev);

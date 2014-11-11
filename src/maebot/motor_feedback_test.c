@@ -13,7 +13,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     if (res)
         printf ("system clear failed\n");
 
-    printf ("Subscribed to channed: MAEBOT_MOTOR_FEEDBACK\n");
+    printf ("Subscribed to channel: %s\n", channel);
     printf ("utime: %"PRId64"\n", msg->utime);
     printf ("encoder_[left, right]_ticks:\t\t%d,\t%d\n",
             msg->encoder_left_ticks, msg->encoder_right_ticks);
@@ -28,7 +28,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 int
 main (int argc, char *argv[])
 {
-	lcm_t *lcm = lcm_create ("udpm://239.255.76.67:7667?ttl=0");
+	lcm_t *lcm = lcm_create (NULL);
 	if(!lcm)
 		return 1;
 

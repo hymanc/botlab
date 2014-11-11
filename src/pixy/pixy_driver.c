@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
         // Wait for sync pattern 0xaa55
         while ((i = readu8(fd)) != 0xaa) {
             //printf("%02x ", i);
-            usleep(500);
+            usleep(2000);
         }
         if ((i = readu8(fd)) == 0x55) {
             // Read blocks until zero byte is encountered
@@ -171,6 +171,17 @@ int main(int argc, char *argv[])
                     break;
 
                 msg.checksum = readu16(fd);
+                // Stupid packet format is ambiguous: pixy will send 0xAA55
+                // BEFORE the block header to indicate the start of a frame.
+                // Handle this case here:
+                if (msg.checksum == 0xAA55) {
+                    msg.type = TYPE_NORMAL;
+                    msg.checksum = readu16(fd);
+                } else if (msg.checksum == 0xAA56) {
+                    msg.type = TYPE_COLOR_CODE;
+                    msg.checksum = readu16(fd);
+                }
+
                 msg.signature = readu16(fd);
                 msg.x = readu16(fd);
                 msg.y = readu16(fd);

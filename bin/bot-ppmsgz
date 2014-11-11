@@ -10,13 +10,13 @@ def usage():
 
 bot-ppmsgz is a utility for converting .ppms.gz videos recorded by bot-vis
 viewer applications to more useful formats.  All output formats, except for
-"files", require ffmpeg.  For the most part, this program is a light wrapper
-around ffmpeg.
+"files", require avconv.  For the most part, this program is a light wrapper
+around avconv.
 
 A .ppms.gz file is a zlib compressed sequence of PPM files.  If the conversions
 provided by this tool are insufficient, then you can work with a .ppms.gz file
-directly with ffmpeg by piping it to ffmpeg as follows:
-  zcat input.ppms.gz | ffmpeg -vcodec ppm -f image2pipe -i - FFMPEG_OPTIONS...
+directly with avconv by piping it to avconv as follows:
+  zcat input.ppms.gz | avconv -vcodec ppm -f image2pipe -i - AVCONV_OPTIONS...
 
 
 OUTPUT_FORMATS:
@@ -43,17 +43,17 @@ FORMAT_OPTIONS:
 
   mpeg4 <bitrate> <framerate> <output.mp4>
      Convert the .ppms.gz file into an MPEG-4 compressed video file.  bitrate
-     and framerate are as specified by ffmpeg.
+     and framerate are as specified by avconv.
 
      Example:
        bot-ppmsgz input.ppms.gz mpeg4 10M 30 output.mp4
 
          Compress at 10 megabits / second, 30 fps.
-  
+
   msmpeg4v2 <bitrate> <framerate> <output.avi>
     Convert the .ppms.gz file into a .AVI file using the msmpeg4v2 codec.  This
     format is primarily useful because Windows XP has the codec built in.  bitrate
-    and framerate are as specified by ffmpeg.
+    and framerate are as specified by avconv.
 
     Example:
       bot-ppmsgz input.ppms.gz msmpeg4v2 5M 15 output.avi
@@ -63,9 +63,9 @@ FORMAT_OPTIONS:
     sys.exit(1)
 
 
-def ffmpeg_execute(args, gzfile):
+def avconv_execute(args, gzfile):
     try:
-        args = ["ffmpeg"] + args
+        args = ["avconv"] + args
         p = subprocess.Popen(args, stdin=subprocess.PIPE)
         s = p.poll()
         while p.poll() is None:
@@ -76,7 +76,7 @@ def ffmpeg_execute(args, gzfile):
             else:
                 p.stdin.write(data)
     except OSError:
-        print("bot-ppmsgz requires ffmpeg, which was not found")
+        print("bot-ppmsgz requires avconv, which was not found")
         sys.exit(1)
 
 
@@ -126,8 +126,8 @@ def main(args):
         bitrate = args[0]
         framerate = args[1]
         output_fname = args[2]
-        ffmpeg_execute(["-r", framerate, "-y", "-vcodec", "ppm", 
-            "-f", "image2pipe", "-i", "-", "-vcodec", "mpeg4", 
+        avconv_execute(["-r", framerate, "-y", "-vcodec", "ppm",
+            "-f", "image2pipe", "-i", "-", "-vcodec", "mpeg4",
             "-b", bitrate, "-f", "mp4", output_fname], gzfile)
     elif fmt_name == "msmpeg4v2":
         if len(args) < 3:
@@ -137,8 +137,8 @@ def main(args):
         bitrate = args[0]
         framerate = args[1]
         output_fname = args[2]
-        ffmpeg_execute(["-r", framerate, "-y", "-vcodec", "ppm", 
-            "-f", "image2pipe", "-i", "-", "-vcodec", "msmpeg4v2", 
+        avconv_execute(["-r", framerate, "-y", "-vcodec", "ppm",
+            "-f", "image2pipe", "-i", "-", "-vcodec", "msmpeg4v2",
             "-b", bitrate, "-f", "avi", output_fname], gzfile)
     else:
         usage()

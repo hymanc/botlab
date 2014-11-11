@@ -30,11 +30,11 @@
 
 
 #ifndef max
-	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
 #endif
 
 #ifndef min
-	#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+#define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
 
 const uint32_t HEADER_BYTES = 12;
@@ -46,8 +46,8 @@ static unsigned char _read_gpio(int fd)
 	char c;
 	lseek(fd, 0, SEEK_SET);
 	if (read(fd, &c, 1) != 1) {
-	  printf("error reading gpio\r\n");
-	  return 0;
+        printf("error reading gpio\r\n");
+        return 0;
 	};
 	return (c == '1');
 }
@@ -131,7 +131,7 @@ open_port (void)
 int
 configure_port (int fd)
 {
-  struct termios old_settings;
+    struct termios old_settings;
     if (tcgetattr (fd, &old_settings) != 0) {
 	    printf ("error reading port config\r\n");
 	    return -1;
@@ -203,7 +203,7 @@ get_state (int port)
         uint32_t size = 0;
         readn (port, (void *)&size, 4);
 
-        //printf("Message size: %d\n", size);
+        //printf ("Message size: %d\n", size);
 
         uint32_t type = 0;
         readn (port, (void *)&type, 4);
@@ -242,7 +242,7 @@ sama5_state_thread (void *arg)
 {
 	state_t state;
 
-        int user_button = open("/sys/class/gpio/gpio174/value", O_RDONLY);
+    int user_button = open("/sys/class/gpio/gpio174/value", O_RDONLY);
 	if (user_button < 0) {
 		printf("Error opening file: %m\n");
 	}
@@ -404,8 +404,8 @@ diff_drive_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 
     // copy into shared state;
     shared_state.diff_drive = *msg;
-    clamp(&shared_state.diff_drive.motor_left_speed, -1.0, 1.0);
-    clamp(&shared_state.diff_drive.motor_right_speed, -1.0, 1.0);
+    clamp (&shared_state.diff_drive.motor_left_speed, -1.0, 1.0);
+    clamp (&shared_state.diff_drive.motor_right_speed, -1.0, 1.0);
 
     pthread_mutex_unlock (&statelock);
 
@@ -542,5 +542,5 @@ main (int argc, char *argv[])
 	pthread_create (&sama5_state_thread_pid, NULL, sama5_state_thread, NULL);
 
 	while (1)
-		lcm_handle(lcm);
+		lcm_handle (lcm);
 }

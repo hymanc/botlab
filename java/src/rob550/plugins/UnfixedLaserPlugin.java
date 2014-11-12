@@ -1,4 +1,4 @@
-package april.lcm;
+package rob550.plugins;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -6,15 +6,18 @@ import java.awt.geom.*;
 import java.io.*;
 import javax.swing.*;
 
-import lcm.lcm.*;
-import lcm.spy.*;
+import lcm.spy.ChannelData;
+import lcm.util.ParameterGUI;
+import lcm.util.ParameterListener;
+import lcm.util.ColorMapper;
+import lcm.lcm.LCMDataInputStream;
 
-import rob550.lcmtypes.*;
-import april.util.*;
-import april.vis.*;
+import rob550.lcmtypes.unfixed_laser_t;
+//import april.util.*;
+//import april.vis.*;
 
 /** A plugin for viewing unfixed_laser_t data **/
-public class UnfixedLaserPlugin implements SpyPlugin
+public class UnfixedLaserPlugin implements lcm.spy.SpyPlugin
 {
     boolean filledin = true;
     static final double MAX_ZOOM = 1024;
@@ -118,8 +121,8 @@ public class UnfixedLaserPlugin implements SpyPlugin
                     if (l.ranges[i] < 100)
                         maxrange = Math.max(maxrange, l.ranges[i]);
                     double theta = l.thetas[i];
-                    double x = l.ranges[i]*Math.cos(theta);
-                    double y = l.ranges[i]*Math.sin(theta);
+                    double x = l.ranges[i]*Math.sin(theta);
+                    double y = l.ranges[i]*Math.cos(theta);
                     p.lineTo((float) x, (float) y);
                 }
                 p.closePath();
@@ -175,8 +178,8 @@ public class UnfixedLaserPlugin implements SpyPlugin
                     }
 
                     double theta = l.thetas[i];
-                    double x = l.ranges[i]*Math.cos(theta);
-                    double y = l.ranges[i]*Math.sin(theta);
+                    double x = l.ranges[i]*Math.sin(theta);
+                    double y = l.ranges[i]*Math.cos(theta);
                     Ellipse2D e = new Ellipse2D.Double(x-r/2,y-r/2,r,r);
                     g.fill(e);
                 }
@@ -372,7 +375,7 @@ public class UnfixedLaserPlugin implements SpyPlugin
         }
     }
 
-    class Viewer extends JInternalFrame implements LCMSubscriber
+    class Viewer extends JInternalFrame implements lcm.lcm.LCMSubscriber
     {
         ChannelData cd;
         LaserPane lp;
@@ -396,10 +399,10 @@ public class UnfixedLaserPlugin implements SpyPlugin
             setSize(500,400);
             setVisible(true);
 
-            LCM.getSingleton().subscribe(cd.name, this);
+            lcm.lcm.LCM.getSingleton().subscribe(cd.name, this);
         }
 
-        public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
+        public void messageReceived(lcm.lcm.LCM lcm, String channel, LCMDataInputStream ins)
         {
             try {
                 unfixed_laser_t l = new unfixed_laser_t(ins);

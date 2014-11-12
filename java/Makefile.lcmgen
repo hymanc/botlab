@@ -2,6 +2,10 @@ include ../src/common.mk
 
 BUILD_PATH = build
 
+ROB550_JAR = $(JAVA_PATH)/rob550.jar
+BUILD_PATH = build
+
+
 # Construct the pathnames to the C types
 LCMTYPES_NAMES := $(shell cd ../lcmtypes && ls *.lcm)
 LCMTYPES_JAVA := $(LCMTYPES_NAMES:%.lcm=%.java)
@@ -11,16 +15,22 @@ PLUGINS_JAVA := $(shell cd src/rob550/plugins && ls *.java)
 PLUGINS_JAVA := $(addprefix src/rob550/plugins/,$(PLUGINS_JAVA))
 
 LCM_JAR = /usr/local/share/java/lcm.jar
+APRIL_JAR = /home/maebot/april/java/april.jar
 
-all: $(LCMTYPES_JAVA) lcmtypes_java #plugins_java
+all: $(ROB550_JAR)
+
+
+$(ROB550_JAR): $(LCMTYPES_JAVA)
+	@echo "\t$(LCMTYPES_JAVA)"
+	@javac -classpath $(LCM_JAR) -d $(BUILD_PATH) $(LCMTYPES_JAVA)
+	@echo "\tplugins"
+	@javac -classpath $(BUILD_PATH):$(LCM_JAR):$(APRIL_JAR) -d $(BUILD_PATH) $(PLUGINS_JAVA)
+	@echo "$(ROB550_JAR)"
+	@jar cf $(ROB550_JAR) -C $(BUILD_PATH) .
 
 src/rob550/lcmtypes/%.java: ../lcmtypes/%.lcm
 	@echo "\t$<"
 	@lcm-gen -j --jpath=src --jdefaultpkg=rob550.lcmtypes $<
-
-lcmtypes_java: | builddir
-	@echo "\t$(LCMTYPES_JAVA)"
-	@javac -cp $(LCM_JAR) -d $(BUILD_PATH) $(LCMTYPES_JAVA)
 
 plugins_java: | builddir
 	@echo "\t$(PLUGINS_JAVA)"
@@ -30,4 +40,4 @@ builddir:
 	@mkdir -p $(BUILD_PATH)
 
 clean:
-	@rm -f *~ $(LCMTYPES_JAVA)
+	@rm -f *~ $(LCMTYPES_JAVA) $(ROB550_JAR)

@@ -40,7 +40,7 @@ static void sig_handler(int signo)
 
 static void* scan_loop(void *args)
 {
-    state_t *state = (state_t*)args;
+    state_t *state = args;
 
     printf("Beginning scans...\n");
     if (system("echo 1 > /sys/class/gpio/gpio122/value")) {
@@ -56,9 +56,9 @@ static void* scan_loop(void *args)
     return NULL;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    state = (state_t*) calloc(1, sizeof(state_t));
+    state = calloc(1, sizeof(*state));
 
     state->gopt = getopt_create();
     getopt_add_bool(state->gopt, 'h', "help", 0, "Show this help screen");

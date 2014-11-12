@@ -26,19 +26,18 @@ static void dump(uint8_t *buf, int len)
  */
 static void send_command_raw(int dev, uint8_t request, uint8_t *payload, uint8_t len)
 {
-    uint8_t *req = (uint8_t*) malloc((4 + len)*sizeof(uint8_t));
+    uint8_t *req = malloc((4 + len)*sizeof(uint8_t));
     req[0] = MAGIC_0;
     req[1] = request;
     req[2] = len;
 
-    int i;
-    for (i = 0; i < len; ++i)
+    for (int i = 0; i < len; i++)
         req[3+i] = payload[i];
 
     // Checksum
     int csidx = 4+len-1;
     req[csidx] = 0;
-    for (i = 0; i < csidx; ++i)
+    for (int i = 0; i < csidx; i++)
         req[csidx] ^= req[i];
 
     // Write to device
@@ -108,7 +107,7 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
         return;
     }
 
-    float d2r = 2.0f*M_PI/360.0f;
+    const float d2r = 2.0f*M_PI/360.0f;
 
     // Gather information forever and broadcast complete scans
     // Scan packets are 5 bytes

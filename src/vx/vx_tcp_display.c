@@ -70,8 +70,8 @@ static void write_code_data(tcp_state_t * state, int op_type, const uint8_t * da
 
         int64_t sleep_us = (int64_t)((desired_dt - dt) * 1e6);
 
-        if (verbose > 1) printf("datalen %d dt %f desired_dt %f usleep %ld\n",
-                            datalen, dt, desired_dt, sleep_us);
+        if (verbose > 1) printf("datalen %d dt %f desired_dt %f usleep %"PRId64"\n",
+                                datalen, dt, desired_dt, sleep_us);
 
         if (sleep_us > 0) // avoid zero, neg sleeps
             usleep(sleep_us);
@@ -120,7 +120,7 @@ static void send_resources(vx_display_t * disp, zhash_t * all_resources)
         uint64_t guid = -1;
         vx_resc_t* vr = NULL;
         while(zhash_iterator_next(&itr, &guid, &vr)) {
-            printf("%ld[%d], ", guid, vr->count*vr->fieldwidth);
+            printf("%"PRIu64"[%d], ", guid, vr->count*vr->fieldwidth);
         }
         printf("\n");
     }
@@ -132,7 +132,7 @@ static void send_resources(vx_display_t * disp, zhash_t * all_resources)
         uint64_t guid = -1;
         vx_resc_t* vr = NULL;
         while(zhash_iterator_next(&itr, &guid, &vr)) {
-            printf("%ld[%d], ", guid, vr->count*vr->fieldwidth);
+            printf("%"PRIu64"[%d], ", guid, vr->count*vr->fieldwidth);
         }
         printf("\n");
     }

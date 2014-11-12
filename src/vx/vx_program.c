@@ -172,7 +172,7 @@ vx_program_t * vx_program_load_library(char * name)
 
         vx_resc_inc_ref(pair->vert); // Manually hold onto a reference
         vx_resc_inc_ref(pair->frag);
-        if (verbose) printf("Loaded program %s with vertID %ld and fragID %ld\n", name, pair->vert->id, pair->frag->id);
+        if (verbose) printf("Loaded program %s with vertID %"PRIu64" and fragID %"PRIu64"\n", name, pair->vert->id, pair->frag->id);
 
         if (verbose > 1) {
             const char * vertSource = pair->vert->res;

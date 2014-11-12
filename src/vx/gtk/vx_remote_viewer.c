@@ -201,7 +201,7 @@ void * listen_run(void * usr)
                 uint64_t guid = -1;
                 vx_resc_t* vr = NULL;
                 while(zhash_iterator_next(&itr, &guid, &vr)) {
-                    printf("%ld[%d], ", guid, vr->count*vr->fieldwidth);
+                    printf("%"PRIu64"[%d], ", guid, vr->count*vr->fieldwidth);
                 }
                 printf("\n");
             }

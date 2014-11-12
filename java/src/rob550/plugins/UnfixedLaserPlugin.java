@@ -13,8 +13,6 @@ import lcm.util.ColorMapper;
 import lcm.lcm.LCMDataInputStream;
 
 import rob550.lcmtypes.unfixed_laser_t;
-//import april.util.*;
-//import april.vis.*;
 
 /** A plugin for viewing unfixed_laser_t data **/
 public class UnfixedLaserPlugin implements lcm.spy.SpyPlugin

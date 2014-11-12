@@ -15,7 +15,6 @@ PLUGINS_JAVA := $(shell cd src/rob550/plugins && ls *.java)
 PLUGINS_JAVA := $(addprefix src/rob550/plugins/,$(PLUGINS_JAVA))
 
 LCM_JAR = /usr/local/share/java/lcm.jar
-APRIL_JAR = /home/maebot/april/java/april.jar
 
 all: $(ROB550_JAR)
 
@@ -24,7 +23,7 @@ $(ROB550_JAR): $(LCMTYPES_JAVA)
 	@echo "\t$(LCMTYPES_JAVA)"
 	@javac -classpath $(LCM_JAR) -d $(BUILD_PATH) $(LCMTYPES_JAVA)
 	@echo "\tplugins"
-	@javac -classpath $(BUILD_PATH):$(LCM_JAR):$(APRIL_JAR) -d $(BUILD_PATH) $(PLUGINS_JAVA)
+	@javac -classpath $(BUILD_PATH):$(LCM_JAR) -d $(BUILD_PATH) $(PLUGINS_JAVA)
 	@echo "$(ROB550_JAR)"
 	@jar cf $(ROB550_JAR) -C $(BUILD_PATH) .
 

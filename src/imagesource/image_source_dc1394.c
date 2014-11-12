@@ -1529,39 +1529,39 @@ print_info (image_source_t *isrc)
         uint32_t val = 0;
         int offset = 0;
         if (dc1394_get_strobe_register (impl->cam, offset, &val) == DC1394_SUCCESS) {
-            printf ("\tlocation: 0x%08llX reads little endian: 0x%08X (big endian: 0x%08X)\n",
+            printf ("\tlocation: 0x%08"PRIX64" reads little endian: 0x%08X (big endian: 0x%08X)\n",
                     impl->cam->strobe_control_csr + offset,
                     val,
                     flip_endianness (val));
         }
         else {
-            printf ("\terror reading location 0x%08llX\n",
+            printf ("\terror reading location 0x%08"PRIX64"\n",
                     impl->cam->strobe_control_csr + offset);
         }
 
         printf ("\n\tThe following registers are only known to be defined for Point Grey cameras:\n");
         for (int offset=0x100; offset <= 0x10C; offset += 0x4) {
             if (dc1394_get_strobe_register (impl->cam, offset, &val) == DC1394_SUCCESS) {
-                printf("\tlocation: 0x%08llX reads little endian: 0x%08X (big endian: 0x%08X)\n",
+                printf("\tlocation: 0x%08"PRIX64" reads little endian: 0x%08X (big endian: 0x%08X)\n",
                        impl->cam->strobe_control_csr + offset,
                        val,
                        flip_endianness (val));
             }
             else {
-                printf ("\terror reading location 0x%08llX\n",
+                printf ("\terror reading location 0x%08"PRIX64"\n",
                         impl->cam->strobe_control_csr + offset);
             }
         }
 
         for (int offset=0x200; offset <= 0x20C; offset += 0x4) {
             if (dc1394_get_strobe_register (impl->cam, offset, &val) == DC1394_SUCCESS) {
-                printf ("\tlocation: 0x%08llX reads little endian: 0x%08X (big endian: 0x%08X)\n",
+                printf ("\tlocation: 0x%08"PRIX64" reads little endian: 0x%08X (big endian: 0x%08X)\n",
                        impl->cam->strobe_control_csr + offset,
                        val,
-                       flip_endianness (val));
+                        flip_endianness (val));
             }
             else {
-                printf ("\terror reading location 0x%08llX\n",
+                printf ("\terror reading location 0x%08"PRIX64"\n",
                         impl->cam->strobe_control_csr + offset);
             }
         }

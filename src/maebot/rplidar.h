@@ -1,5 +1,5 @@
-#ifndef _RPLIDAR_H
-#define _RPLIDAR_H
+#ifndef __RPLIDAR_H__
+#define __RPLIDAR_H__
 
 #include <unistd.h>
 #include <stdint.h>
@@ -64,4 +64,4 @@ void rp_lidar_check_info(int dev);
 int rp_lidar_check_health(int dev);
 
 
-#endif
+#endif //__RPLIDAR_H__

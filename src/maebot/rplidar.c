@@ -5,8 +5,7 @@
 
 #include "common/serial.h"
 #include "common/ioutils.h"
-
-#include <sys/time.h>
+#include "common/timestamp.h"
 
 #define VERBOSE 0
 
@@ -119,21 +118,16 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
     int64_t times[2000];
     float intensities[2000];
 
-    int64_t now;
-    int16_t angle, range;
-    int8_t quality;
-
-    unfixed_laser_t laser;
-    laser.ranges = ranges;
-    laser.thetas = thetas;
-    laser.times = times;
-    laser.intensities = intensities;
+    unfixed_laser_t laser = {
+        .ranges = ranges,
+        .thetas = thetas,
+        .times = times,
+        .intensities = intensities,
+    };
     while (!halt) {
         // Read in bytes
         res = read_fully_timeout(dev, buf, 5, TIMEOUT_MS);
-        struct timeval tv;
-        gettimeofday (&tv, NULL);
-        now = (int64_t) tv.tv_sec * 1000000 + tv.tv_usec;
+        int64_t now = utime_now();
         if (res < 1) {
             if (VERBOSE)
                 printf("ERR: Could not read range return\n");
@@ -141,7 +135,7 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
         }
 
         // Check for new scan
-        if ((buf[0] & 0x1) && !(buf[0] & 0x2)) {
+        if ((buf[0] & 0x01) && !(buf[0] & 0x02)) {
             if (count) {
                 laser.nranges = count;
                 laser.nintensities = count;
@@ -151,14 +145,14 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
             laser.utime = now;
         }
 
-        quality = (buf[0] & 0xfc) >> 2;
-        angle = ((buf[1] & 0xfe) >> 1) | (buf[2] << 7);
-        range = buf[3] | (buf[4] << 8);
+        int8_t quality = (buf[0] & 0xfc) >> 2;
+        int16_t angle = ((buf[1] & 0xfe) >> 1) | (buf[2] << 7);
+        int16_t range = buf[3] | (buf[4] << 8);
 
-        ranges[count] = (range/4.0f)/1000;
+        ranges[count] = (range/4.0f)/1000.0f;
         thetas[count] = (angle/64.0f)*d2r;
         times[count] = now;
-        intensities[count] = (float)quality/0x3f;
+        intensities[count] = ((float)quality)/0x3f;
 
         count++;
     }

@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 int64_t
-utime_now(void);
+utime_now (void);
 
 void
 utime_to_timeval (int64_t v, struct timeval *tv);

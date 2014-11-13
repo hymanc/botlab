@@ -104,8 +104,6 @@ public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
             g.transform(T);
             double scale = getScale();
 
-            double maxrange = 0;
-
             // draw the filled-in polygon of the laser scan
             if (pg.gb("volume"))
             {
@@ -116,8 +114,6 @@ public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
                     if (l.ranges[i] > MAX_RANGE)
                         continue;
 
-                    if (l.ranges[i] < 100)
-                        maxrange = Math.max(maxrange, l.ranges[i]);
                     double theta = l.thetas[i];
                     double x = l.ranges[i]*Math.sin(theta);
                     double y = l.ranges[i]*Math.cos(theta);

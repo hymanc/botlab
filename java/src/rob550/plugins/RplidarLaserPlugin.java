@@ -20,7 +20,7 @@ public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
     boolean filledin = true;
     static final double MAX_ZOOM = 1024;
     static final double MIN_ZOOM = 4;
-    static final double MAX_RANGE = 10.0;  // ignore returns longer than this (meters)
+    static final double MAX_RANGE = 6;  // ignore returns longer than this (meters)
 
     public boolean canHandle(long fingerprint)
     {
@@ -92,7 +92,7 @@ public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
             if (T == null) {
                 T = new AffineTransform();
                 T.translate(width/2, height);
-                T.scale(8, -8);
+                T.scale(64, -64);
             }
 
             g.setColor(Color.black);
@@ -188,7 +188,7 @@ public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
                 g.setStroke(new BasicStroke((float) (1.0/scale))); // 1px
                 g.setFont(g.getFont().deriveFont((float) (12.0/scale)).deriveFont(AffineTransform.getScaleInstance(1, -1)));
 
-                int maxring = (int) Math.max(maxrange,Math.sqrt(width*width/4 + height*height)/scale);
+                int maxring = (int) Math.max(MAX_RANGE,Math.sqrt(width*width/4 + height*height)/scale);
 
                 for (int i = 1; i < maxring; i++)
                 {

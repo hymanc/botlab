@@ -11,4 +11,4 @@ all:
 
 clean:
 	@$(MAKE) -f Makefile.lcmgen clean || exit 2;
-	@rm -rf build/*
+	@echo "clean [java/build]"; rm -rf build/*

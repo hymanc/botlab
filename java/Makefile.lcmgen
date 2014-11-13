@@ -37,4 +37,5 @@ builddir:
 	@mkdir -p $(BUILD_PATH)
 
 clean:
+	@echo "clean [java/lcmtypes]"
 	@rm -f *~ $(LCMTYPES_JAVA) $(ROB550_JAR)

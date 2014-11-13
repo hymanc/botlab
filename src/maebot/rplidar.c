@@ -134,17 +134,6 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
             continue;
         }
 
-        // Check for new scan
-        if ((buf[0] & 0x01) && !(buf[0] & 0x02)) {
-            if (count) {
-                laser.nranges = count;
-                laser.nintensities = count;
-                rplidar_laser_t_publish(lcm, channel, &laser);
-                count = 0;
-            }
-            laser.utime = now;
-        }
-
         int8_t quality = (buf[0] & 0xfc) >> 2;
         int16_t angle = ((buf[1] & 0xfe) >> 1) | (buf[2] << 7);
         int16_t range = buf[3] | (buf[4] << 8);
@@ -155,6 +144,17 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
         intensities[count] = ((float)quality)/0x3f;
 
         count++;
+
+        // Check for new scan
+        if ((buf[0] & 0x01) && !(buf[0] & 0x02)) {
+            if (count) {
+                laser.nranges = count;
+                laser.nintensities = count;
+                rplidar_laser_t_publish(lcm, channel, &laser);
+                count = 0;
+            }
+            laser.utime = now;
+        }
     }
 
     halt = 0;

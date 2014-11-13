@@ -118,7 +118,7 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
     int64_t times[2000];
     float intensities[2000];
 
-    unfixed_laser_t laser = {
+    rplidar_laser_t laser = {
         .ranges = ranges,
         .thetas = thetas,
         .times = times,
@@ -139,7 +139,7 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
             if (count) {
                 laser.nranges = count;
                 laser.nintensities = count;
-                unfixed_laser_t_publish(lcm, channel, &laser);
+                rplidar_laser_t_publish(lcm, channel, &laser);
                 count = 0;
             }
             laser.utime = now;

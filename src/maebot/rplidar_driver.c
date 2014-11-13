@@ -4,13 +4,12 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <signal.h>
-
-#include "rplidar.h"
+#include <lcm/lcm.h>
 
 #include "common/getopt.h"
 #include "common/serial.h"
 
-#include "lcmtypes/unfixed_laser_t.h"
+#include "rplidar.h"
 
 #define VERBOSE 1
 
@@ -38,7 +37,7 @@ static void sig_handler(int signo)
     rp_lidar_stop(state->dev);
 }
 
-static void* scan_loop(void *args)
+static void * scan_loop(void *args)
 {
     state_t *state = args;
 

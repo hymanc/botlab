@@ -12,19 +12,19 @@ import lcm.util.ParameterListener;
 import lcm.util.ColorMapper;
 import lcm.lcm.LCMDataInputStream;
 
-import rob550.lcmtypes.unfixed_laser_t;
+import rob550.lcmtypes.rplidar_laser_t;
 
-/** A plugin for viewing unfixed_laser_t data **/
-public class UnfixedLaserPlugin implements lcm.spy.SpyPlugin
+/** A plugin for viewing rplidar_laser_t data **/
+public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
 {
     boolean filledin = true;
     static final double MAX_ZOOM = 1024;
     static final double MIN_ZOOM = 4;
-    static final double MAX_RANGE = 75.0;  // ignore returns longer than this (meters)
+    static final double MAX_RANGE = 10.0;  // ignore returns longer than this (meters)
 
     public boolean canHandle(long fingerprint)
     {
-        return fingerprint == unfixed_laser_t.LCM_FINGERPRINT;
+        return fingerprint == rplidar_laser_t.LCM_FINGERPRINT;
     }
 
     class MyAction extends AbstractAction
@@ -54,7 +54,7 @@ public class UnfixedLaserPlugin implements lcm.spy.SpyPlugin
 
     class LaserPane extends JPanel implements MouseWheelListener, MouseListener, MouseMotionListener, KeyListener
     {
-        unfixed_laser_t l;
+        rplidar_laser_t l;
         double tx, ty;
         AffineTransform T ;
         ParameterGUI pg;
@@ -77,7 +77,7 @@ public class UnfixedLaserPlugin implements lcm.spy.SpyPlugin
             return T.getScaleX();
         }
 
-        public void setData(unfixed_laser_t l)
+        public void setData(rplidar_laser_t l)
         {
             this.l = l;
             repaint();
@@ -403,7 +403,7 @@ public class UnfixedLaserPlugin implements lcm.spy.SpyPlugin
         public void messageReceived(lcm.lcm.LCM lcm, String channel, LCMDataInputStream ins)
         {
             try {
-                unfixed_laser_t l = new unfixed_laser_t(ins);
+                rplidar_laser_t l = new rplidar_laser_t(ins);
                 lp.setData(l);
             } catch (IOException ex) {
                 System.out.println("ex: "+ex);

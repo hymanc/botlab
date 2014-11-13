@@ -1,4 +1,4 @@
-struct unfixed_laser_t
+struct rplidar_laser_t
 {
     int64_t utime;
 

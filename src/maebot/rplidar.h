@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#include "lcmtypes/unfixed_laser_t.h"
+#include "lcmtypes/rplidar_laser_t.h"
 
 #define TIMEOUT_MS 50
 

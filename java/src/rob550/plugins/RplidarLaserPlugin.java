@@ -20,7 +20,7 @@ public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
     boolean filledin = true;
     static final double MAX_ZOOM = 1024;
     static final double MIN_ZOOM = 4;
-    static final double MAX_RANGE = 6;  // ignore returns longer than this (meters)
+    static final double MAX_RANGE = 10;  // ignore returns longer than this (meters)
 
     public boolean canHandle(long fingerprint)
     {

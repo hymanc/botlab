@@ -20,9 +20,11 @@ all: $(ROB550_JAR)
 
 
 $(ROB550_JAR): $(LCMTYPES_JAVA)
+	@echo "[java/lcmtypes]"
 	@echo "\t$(LCMTYPES_JAVA)"
 	@javac -classpath $(LCM_JAR) -d $(BUILD_PATH) $(LCMTYPES_JAVA)
-	@echo "\tplugins"
+	@echo "[java/plugins]"
+	@echo "\t$(PLUGINS_JAVA)"
 	@javac -classpath $(BUILD_PATH):$(LCM_JAR) -d $(BUILD_PATH) $(PLUGINS_JAVA)
 	@echo "$(ROB550_JAR)"
 	@jar cf $(ROB550_JAR) -C $(BUILD_PATH) .
@@ -30,10 +32,6 @@ $(ROB550_JAR): $(LCMTYPES_JAVA)
 src/rob550/lcmtypes/%.java: ../lcmtypes/%.lcm
 	@echo "\t$<"
 	@lcm-gen -j --jpath=src --jdefaultpkg=rob550.lcmtypes $<
-
-plugins_java: | builddir
-	@echo "\t$(PLUGINS_JAVA)"
-	@javac -cp $(LCM_JAR) -d $(BUILD_PATH) $(PLUGINS_JAVA)
 
 builddir:
 	@mkdir -p $(BUILD_PATH)

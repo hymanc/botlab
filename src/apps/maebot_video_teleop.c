@@ -92,11 +92,9 @@ run_camera (void *data)
         printf ("Starting run_camera\n");
 
     while (state->running) {
-
         image_u32_t *im = NULL;
         {
             image_source_data_t isdata;
-
             int res = isrc->get_frame (isrc, &isdata);
             if (!res)
                 im = image_convert_u32 (&isdata);
@@ -129,9 +127,6 @@ run_camera (void *data)
             vx_buffer_swap (vb);
             image_u32_destroy (im);
         }
-
-        //const int hz = 1;
-        //usleep (1000000/hz);
     }
 
   error:
@@ -199,18 +194,26 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
         if (key_up) { // forward
             state->cmd.motor_left_speed = fwd_speed;
             state->cmd.motor_right_speed = fwd_speed;
-            if (key_left)
-                state->cmd.motor_left_speed *= 0.6;
-            else if (key_right)
-                state->cmd.motor_right_speed *= 0.6;
+            if (key_left) {
+                state->cmd.motor_left_speed -= 0.1;
+                state->cmd.motor_right_speed += 0.1;
+            }
+            else if (key_right) {
+                state->cmd.motor_left_speed += 0.1;
+                state->cmd.motor_right_speed -= 0.1;
+            }
         }
         else if (key_down) { // reverse
             state->cmd.motor_left_speed = rev_speed;
             state->cmd.motor_right_speed = rev_speed;
-            if (key_left)
-                state->cmd.motor_left_speed *= 0.6;
-            else if (key_right)
-                state->cmd.motor_right_speed *= 0.6;
+            if (key_left) {
+                state->cmd.motor_left_speed += 0.1;
+                state->cmd.motor_right_speed -= 0.1;
+            }
+            else if (key_right) {
+                state->cmd.motor_left_speed -= 0.1;
+                state->cmd.motor_right_speed += 0.1;
+            }
         }
         else if (key_left) { // turn left
             state->cmd.motor_left_speed =  rev_speed;
@@ -295,9 +298,10 @@ main (int argc, char *argv[])
 
     getopt_add_bool (state->gopt, 'h', "help", 0, "Show this help");
     getopt_add_bool (state->gopt, 'v', "verbose", 0, "Show extra debugging output");
-    getopt_add_bool (state->gopt, '\0', "no-video", 0, "Disable video");
     getopt_add_int (state->gopt, 'l', "limitKBs", "-1", "Remote display bandwidth limit. < 0: unlimited.");
     getopt_add_int (state->gopt, 'd', "decimate", "1", "Decimate image by this amount before showing in vx");
+    getopt_add_string (state->gopt, '\0', "url", "", "Camera URL");
+    getopt_add_bool (state->gopt, '\0', "no-video", 0, "Disable video");
 
     if (!getopt_parse (state->gopt, argc, argv, 0) || getopt_get_bool(state->gopt,"help")) {
         getopt_do_usage (state->gopt);
@@ -317,30 +321,31 @@ main (int argc, char *argv[])
     vx_remote_display_source_attr_init (&remote_attr);
     remote_attr.max_bandwidth_KBs = getopt_get_int (state->gopt, "limitKBs");
     remote_attr.advertise_name = "Maebot Teleop";
-
     vx_remote_display_source_t *remote = vx_remote_display_source_create_attr (&state->app, &remote_attr);
-
 
     pthread_create (&state->cmd_thread,  NULL, send_cmds, state);
 
     if (!getopt_get_bool (state->gopt, "no-video")) {
-        const zarray_t *args = getopt_get_extra_args (state->gopt);
-        if (zarray_size (args) > 0) {
-            zarray_get (args, 0, &state->url);
+        // Set up the imagesource. This looks for a camera url specified on
+        // the command line and, if none is found, enumerates a list of all
+        // cameras imagesource can find and picks the first url it finds.
+        if (strncmp (getopt_get_string (state->gopt, "url"), "", 1)) {
+            state->url = strdup (getopt_get_string (state->gopt, "url"));
+            printf ("URL: %s\n", state->url);
         }
         else {
+            // No URL specified. Show all available and then use the first
             zarray_t *urls = image_source_enumerate ();
-
             printf ("Cameras:\n");
-            for (int i = 0; i < zarray_size(urls); i++) {
+            for (int i = 0; i < zarray_size (urls); i++) {
                 char *url;
                 zarray_get (urls, i, &url);
                 printf ("  %3d: %s\n", i, url);
             }
 
-            if (zarray_size (urls) == 0) {
+            if (0==zarray_size (urls)) {
                 printf ("No cameras found.\n");
-                exit (EXIT_SUCCESS);
+                exit (EXIT_FAILURE);
             }
             zarray_get (urls, 0, &state->url);
         }
@@ -360,8 +365,9 @@ main (int argc, char *argv[])
         isrc->close (isrc);
     }
     else {
-        while (state->running)
-            usleep(250000);
+        while (state->running) {
+            sleep(1);
+        }
     }
 
     vx_remote_display_source_destroy (remote);

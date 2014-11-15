@@ -155,26 +155,39 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
     pthread_mutex_lock (&state->cmd_mutex);
     {
         if (!key->released) {
-            if (key->key_code == 'w' || key->key_code == 'W' || key->key_code == VX_KEY_UP) {
-                // forward
-                state->cmd.motor_left_speed = MAX_FORWARD_SPEED;
-                state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
-            }
-            else if (key->key_code == 's' || key->key_code == 'S' || key->key_code == VX_KEY_DOWN) {
-                // reverse
-                state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
-                state->cmd.motor_right_speed = MAX_REVERSE_SPEED;
-            }
-            else if (key->key_code == 'a' || key->key_code == 'A' || key->key_code == VX_KEY_LEFT) {
-                // turn left
-                state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
-                state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
-
-            }
-            else if (key->key_code == 'd' || key->key_code == 'D' || key->key_code == VX_KEY_RIGHT) {
-                // turn right
-                state->cmd.motor_left_speed = MAX_FORWARD_SPEED;
-                state->cmd.motor_right_speed = MAX_REVERSE_SPEED;
+            switch (key->key_code) {
+                case VX_KEY_UP:
+                case VX_KEY_w:
+                case VX_KEY_W:
+                    // forward
+                    state->cmd.motor_left_speed = MAX_FORWARD_SPEED;
+                    state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
+                    break;
+                case VX_KEY_DOWN:
+                case VX_KEY_s:
+                case VX_KEY_S:
+                    // reverse
+                    state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
+                    state->cmd.motor_right_speed = MAX_REVERSE_SPEED;
+                    break;
+                case VX_KEY_LEFT:
+                case VX_KEY_a:
+                case VX_KEY_A:
+                    // turn left
+                    state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
+                    state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
+                    break;
+                case VX_KEY_RIGHT:
+                case VX_KEY_d:
+                case VX_KEY_D:
+                    // turn right
+                    state->cmd.motor_left_speed = MAX_FORWARD_SPEED;
+                    state->cmd.motor_right_speed = MAX_REVERSE_SPEED;
+                    break;
+                default:
+                    // do nothing
+                    state->cmd.motor_left_speed = 0;
+                    state->cmd.motor_right_speed = 0;
             }
         }
         else {
@@ -221,7 +234,9 @@ send_cmds (void *data)
         }
         pthread_mutex_unlock (&state->cmd_mutex);
 
-        usleep(50000); // send at 20 hz
+        // send at 20 hz
+        const int hz = 20;
+        usleep (1000000/hz);
     }
     return NULL;
 }

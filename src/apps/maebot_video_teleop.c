@@ -1,10 +1,10 @@
-
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <stdlib.h>
-#include <lcm/lcm.h>
 #include <signal.h>
+#include <lcm/lcm.h>
 
 #include "vx/vx.h"
 #include "vx/vxo_drawables.h"
@@ -160,57 +160,65 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
 
     static float rev_speed = REVERSE_SPEED1;
     static float fwd_speed = FORWARD_SPEED1;
+    static bool key_shift=0, key_up=0, key_down=0, key_left=0, key_right=0;
 
+    switch (key->key_code) {
+        case VX_KEY_SHIFT:
+            key_shift = !key->released;
+            break;
+        case VX_KEY_UP:
+            key_up = !key->released;
+            break;
+        case VX_KEY_DOWN:
+            key_down = !key->released;
+            break;
+        case VX_KEY_LEFT:
+            key_left = !key->released;
+            break;
+        case VX_KEY_RIGHT:
+            key_right = !key->released;
+            break;
+        default:
+            ;// silently ignore
+    }
 
     pthread_mutex_lock (&state->mutex);
     {
-        if (!key->released) {
-            switch (key->key_code) {
-                case VX_KEY_SHIFT:
-                    rev_speed = REVERSE_SPEED2;
-                    fwd_speed = FORWARD_SPEED2;
-                    break;
-                case VX_KEY_UP:
-                case VX_KEY_w:
-                case VX_KEY_W:
-                    // forward
-                    state->cmd.motor_left_speed = fwd_speed;
-                    state->cmd.motor_right_speed = fwd_speed;
-                    break;
-                case VX_KEY_DOWN:
-                case VX_KEY_s:
-                case VX_KEY_S:
-                    // reverse
-                    state->cmd.motor_left_speed = rev_speed;
-                    state->cmd.motor_right_speed = rev_speed;
-                    break;
-                case VX_KEY_LEFT:
-                case VX_KEY_a:
-                case VX_KEY_A:
-                    // turn left
-                    state->cmd.motor_left_speed =  rev_speed;
-                    state->cmd.motor_right_speed = -rev_speed;
-                    break;
-                case VX_KEY_RIGHT:
-                case VX_KEY_d:
-                case VX_KEY_D:
-                    // turn right
-                    state->cmd.motor_left_speed = -rev_speed;
-                    state->cmd.motor_right_speed = rev_speed;
-                    break;
-                default:
-                    // do nothing
-                    state->cmd.motor_left_speed = 0;
-                    state->cmd.motor_right_speed = 0;
-            }
+        // default to zero
+        state->cmd.motor_left_speed = state->cmd.motor_right_speed = 0.0;
+
+        if (key_shift) { // speed boost
+            fwd_speed = FORWARD_SPEED2;
+            rev_speed = REVERSE_SPEED2;
         }
         else {
-            // when key released, speeds default to 0
-            state->cmd.motor_left_speed = 0;
-            state->cmd.motor_right_speed = 0;
-
-            rev_speed = REVERSE_SPEED1;
             fwd_speed = FORWARD_SPEED1;
+            rev_speed = REVERSE_SPEED1;
+        }
+
+        if (key_up) { // forward
+            state->cmd.motor_left_speed = fwd_speed;
+            state->cmd.motor_right_speed = fwd_speed;
+            if (key_left)
+                state->cmd.motor_left_speed *= 0.6;
+            else if (key_right)
+                state->cmd.motor_right_speed *= 0.6;
+        }
+        else if (key_down) { // reverse
+            state->cmd.motor_left_speed = rev_speed;
+            state->cmd.motor_right_speed = rev_speed;
+            if (key_left)
+                state->cmd.motor_left_speed *= 0.6;
+            else if (key_right)
+                state->cmd.motor_right_speed *= 0.6;
+        }
+        else if (key_left) { // turn left
+            state->cmd.motor_left_speed =  rev_speed;
+            state->cmd.motor_right_speed = -rev_speed;
+        }
+        else if (key_right) { // turn right
+            state->cmd.motor_left_speed = -rev_speed;
+            state->cmd.motor_right_speed = rev_speed;
         }
     }
     pthread_mutex_unlock (&state->mutex);

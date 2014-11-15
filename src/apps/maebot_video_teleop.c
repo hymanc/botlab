@@ -18,8 +18,11 @@
 
 #include "lcmtypes/maebot_diff_drive_t.h"
 
-#define MAX_REVERSE_SPEED -0.25f
-#define MAX_FORWARD_SPEED 0.25f
+#define REVERSE_SPEED1 -0.25f
+#define REVERSE_SPEED2 -0.35f
+
+#define FORWARD_SPEED1 0.35f
+#define FORWARD_SPEED2 0.45f
 
 typedef struct state state_t;
 struct state {
@@ -28,7 +31,6 @@ struct state {
 
     maebot_diff_drive_t cmd;
     pthread_t cmd_thread;
-    pthread_mutex_t cmd_mutex;
 
     int running;
 
@@ -41,7 +43,8 @@ struct state {
 
     vx_world_t *vw;
     zhash_t *layer_map; // <display, layer>
-    pthread_mutex_t layer_mutex;
+
+    pthread_mutex_t mutex;
 };
 
 
@@ -51,14 +54,14 @@ static void
 display_finished (vx_application_t *app, vx_display_t *disp)
 {
     state_t *state = app->impl;
-    pthread_mutex_lock (&state->layer_mutex);
+    pthread_mutex_lock (&state->mutex);
     {
         // retrieve reference to the world and layer that we associate with each vx_display_t
         vx_layer_t *layer = NULL;
         zhash_remove (state->layer_map, &disp, NULL, &layer);
         vx_layer_destroy (layer);
     }
-    pthread_mutex_unlock (&state->layer_mutex);
+    pthread_mutex_unlock (&state->mutex);
 }
 
 static void
@@ -70,12 +73,12 @@ display_started (vx_application_t *app, vx_display_t *disp)
     vx_layer_set_display (layer, disp);
     vx_layer_add_event_handler (layer, &state->veh);
 
-    pthread_mutex_lock (&state->layer_mutex);
+    pthread_mutex_lock (&state->mutex);
     {
         // store a reference to the world and layer that we associate with each vx_display_t
         zhash_put (state->layer_map, &disp, &layer, NULL, NULL);
     }
-    pthread_mutex_unlock (&state->layer_mutex);
+    pthread_mutex_unlock (&state->mutex);
 }
 
 
@@ -126,6 +129,9 @@ run_camera (void *data)
             vx_buffer_swap (vb);
             image_u32_destroy (im);
         }
+
+        //const int hz = 1;
+        //usleep (1000000/hz);
     }
 
   error:
@@ -152,37 +158,45 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
 {
     state_t *state = vh->impl;
 
-    pthread_mutex_lock (&state->cmd_mutex);
+    static float rev_speed = REVERSE_SPEED1;
+    static float fwd_speed = FORWARD_SPEED1;
+
+
+    pthread_mutex_lock (&state->mutex);
     {
         if (!key->released) {
             switch (key->key_code) {
+                case VX_KEY_SHIFT:
+                    rev_speed = REVERSE_SPEED2;
+                    fwd_speed = FORWARD_SPEED2;
+                    break;
                 case VX_KEY_UP:
                 case VX_KEY_w:
                 case VX_KEY_W:
                     // forward
-                    state->cmd.motor_left_speed = MAX_FORWARD_SPEED;
-                    state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
+                    state->cmd.motor_left_speed = fwd_speed;
+                    state->cmd.motor_right_speed = fwd_speed;
                     break;
                 case VX_KEY_DOWN:
                 case VX_KEY_s:
                 case VX_KEY_S:
                     // reverse
-                    state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
-                    state->cmd.motor_right_speed = MAX_REVERSE_SPEED;
+                    state->cmd.motor_left_speed = rev_speed;
+                    state->cmd.motor_right_speed = rev_speed;
                     break;
                 case VX_KEY_LEFT:
                 case VX_KEY_a:
                 case VX_KEY_A:
                     // turn left
-                    state->cmd.motor_left_speed = MAX_REVERSE_SPEED;
-                    state->cmd.motor_right_speed = MAX_FORWARD_SPEED;
+                    state->cmd.motor_left_speed =  rev_speed;
+                    state->cmd.motor_right_speed = -rev_speed;
                     break;
                 case VX_KEY_RIGHT:
                 case VX_KEY_d:
                 case VX_KEY_D:
                     // turn right
-                    state->cmd.motor_left_speed = MAX_FORWARD_SPEED;
-                    state->cmd.motor_right_speed = MAX_REVERSE_SPEED;
+                    state->cmd.motor_left_speed = -rev_speed;
+                    state->cmd.motor_right_speed = rev_speed;
                     break;
                 default:
                     // do nothing
@@ -194,9 +208,12 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
             // when key released, speeds default to 0
             state->cmd.motor_left_speed = 0;
             state->cmd.motor_right_speed = 0;
+
+            rev_speed = REVERSE_SPEED1;
+            fwd_speed = FORWARD_SPEED1;
         }
     }
-    pthread_mutex_unlock (&state->cmd_mutex);
+    pthread_mutex_unlock (&state->mutex);
 
     return 0;
 }
@@ -227,12 +244,12 @@ send_cmds (void *data)
     state_t *state = data;
 
     while (state->running) {
-        pthread_mutex_lock (&state->cmd_mutex);
+        pthread_mutex_lock (&state->mutex);
         {
             //state->cmd.timestamp = utime_now();
             maebot_diff_drive_t_publish (state->lcm,  "MAEBOT_DIFF_DRIVE", &state->cmd);
         }
-        pthread_mutex_unlock (&state->cmd_mutex);
+        pthread_mutex_unlock (&state->mutex);
 
         // send at 20 hz
         const int hz = 20;
@@ -262,8 +279,7 @@ main (int argc, char *argv[])
     state->running = 1;
     state->lcm = lcm_create (NULL);
     state->vw = vx_world_create ();
-    pthread_mutex_init (&state->layer_mutex, NULL);
-    pthread_mutex_init (&state->cmd_mutex, NULL);
+    pthread_mutex_init (&state->mutex, NULL);
 
     state->layer_map = zhash_create (sizeof(vx_display_t*), sizeof(vx_layer_t*), zhash_ptr_hash, zhash_ptr_equals);
 
@@ -280,10 +296,10 @@ main (int argc, char *argv[])
         exit (EXIT_FAILURE);
     }
 
-    if (0) {
-        vx_object_t *vt = vxo_text_create (VXO_TEXT_ANCHOR_TOP_RIGHT, "<<right,#0000ff>>Robot viewer!\n");
+    if (1) {
         vx_buffer_t *vb = vx_world_get_buffer (state->vw, "text");
-        vx_buffer_add_back (vb, vxo_pix_coords (VX_ORIGIN_TOP_RIGHT,vt));
+        vx_object_t *vt = vxo_text_create (VXO_TEXT_ANCHOR_TOP_RIGHT, "<<right,#0000ff>>Robot viewer!\n");
+        vx_buffer_add_back (vb, vxo_pix_coords (VX_ORIGIN_TOP_RIGHT, vt));
         vx_buffer_swap (vb);
     }
 
@@ -337,7 +353,7 @@ main (int argc, char *argv[])
     }
     else {
         while (state->running)
-            sleep(1);
+            usleep(250000);
     }
 
     vx_remote_display_source_destroy (remote);

@@ -130,8 +130,8 @@ public class RplidarLaserPlugin implements lcm.spy.SpyPlugin
 
             ///////// draw laser returns as dots
 
-            // values for sick LMS291-S05
-            double min_intensity = 7500, max_intensity = 12000;
+            // values for rplidar
+            double min_intensity = 0.0, max_intensity = 1.0;
 
             if (pg.gb("normalized_intensities")) {
                 min_intensity = Double.MAX_VALUE;

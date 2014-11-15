@@ -7,7 +7,7 @@
 #include "common/ioutils.h"
 #include "common/timestamp.h"
 
-#define VERBOSE 0
+#define VERBOSE 1
 
 volatile int halt = 0;
 
@@ -110,26 +110,22 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
 
     // Gather information forever and broadcast complete scans
     // Scan packets are 5 bytes
-    int res;
-    uint8_t buf[5];
-    int32_t count = 0;
-    float ranges[2000];
-    float thetas[2000];
-    int64_t times[2000];
-    float intensities[2000];
-
     rplidar_laser_t laser = {
-        .ranges = ranges,
-        .thetas = thetas,
-        .times = times,
-        .intensities = intensities,
+        .ranges = calloc(1000, sizeof(*laser.ranges)),
+        .thetas = calloc(1000, sizeof(*laser.thetas)),
+        .times = calloc(1000, sizeof(*laser.times)),
+        .intensities = calloc(1000, sizeof(*laser.intensities)),
     };
+
+    int32_t count = 0;
+    const int64_t startup = utime_now();
     while (!halt) {
         // Read in bytes
-        res = read_fully_timeout(dev, buf, 5, TIMEOUT_MS);
+        uint8_t buf[5];
+        int res = read_fully_timeout(dev, buf, 5, TIMEOUT_MS);
         int64_t now = utime_now();
-        if (res < 1) {
-            if (VERBOSE)
+        if (res < 5) {
+            if (VERBOSE && (now-startup>1000000))
                 printf("ERR: Could not read range return\n");
             continue;
         }
@@ -138,26 +134,32 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
         int16_t angle = ((buf[1] & 0xfe) >> 1) | (buf[2] << 7);
         int16_t range = buf[3] | (buf[4] << 8);
 
-        ranges[count] = (range/4.0f)/1000.0f;
-        thetas[count] = (angle/64.0f)*d2r;
-        times[count] = now;
-        intensities[count] = ((float)quality)/0x3f;
+        if (range > 0) {
+            laser.ranges[count] = (range/4.0f)/1000.0f;
+            laser.thetas[count] = (angle/64.0f)*d2r;
+            laser.times[count] = now;
+            laser.intensities[count] = ((float)quality)/0x3f;
 
-        count++;
+            count++;
+        }
 
         // Check for new scan
         if ((buf[0] & 0x01) && !(buf[0] & 0x02)) {
             if (count) {
+                laser.utime = now;
                 laser.nranges = count;
                 laser.nintensities = count;
                 rplidar_laser_t_publish(lcm, channel, &laser);
                 count = 0;
             }
-            laser.utime = now;
         }
     }
 
     halt = 0;
+    free(laser.ranges);
+    free(laser.thetas);
+    free(laser.times);
+    free(laser.intensities);
 }
 
 void rp_lidar_force_scan(int dev, lcm_t *lcm, const char *channel)

@@ -19,10 +19,10 @@
 #include "lcmtypes/maebot_diff_drive_t.h"
 
 #define REVERSE_SPEED1 -0.25f
-#define REVERSE_SPEED2 -0.35f
+#define FORWARD_SPEED1  0.35f
 
-#define FORWARD_SPEED1 0.35f
-#define FORWARD_SPEED2 0.45f
+#define REVERSE_SPEED2 -0.35f
+#define FORWARD_SPEED2  0.45f
 
 typedef struct state state_t;
 struct state {

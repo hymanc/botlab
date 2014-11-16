@@ -1,4 +1,3 @@
-
 struct maebot_leds_t
 {
     int64_t utime;

@@ -1,4 +1,3 @@
-
 struct maebot_laser_t
 {
     int64_t utime;

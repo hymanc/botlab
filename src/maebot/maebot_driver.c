@@ -13,10 +13,7 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
-
 #include <lcm/lcm.h>
-#include "lcmtypes/maebot_command_t.h"
-#include "lcmtypes/maebot_state_t.h"
 #include "lcmtypes/maebot_diff_drive_t.h"
 #include "lcmtypes/maebot_motor_feedback_t.h"
 #include "lcmtypes/maebot_sensor_data_t.h"

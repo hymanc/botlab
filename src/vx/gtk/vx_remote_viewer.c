@@ -352,6 +352,8 @@ int main(int argc, char ** argv)
     getopt_add_string (gopt, 'a', "ip-address", "localhost", "Hostname to connect to.");
     getopt_add_int    (gopt, 'p', "port", "15151", "Port to connect to");
     getopt_add_bool   (gopt, 'l', "list", 0, "List active remote applications and exit");
+    getopt_add_int    (gopt, 'W', "width", "400", "Gtk window width");
+    getopt_add_int    (gopt, 'H', "height", "400", "Gtk window width");
 
     // parse and print help
     if (!getopt_parse(gopt, argc, argv, 1) || getopt_get_bool(gopt,"help")) {
@@ -409,7 +411,9 @@ int main(int argc, char ** argv)
     state->src = vx_gtk_display_source_create_toggle_mgr(&state->app, 0);
     GtkWidget * window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     GtkWidget * canvas = vx_gtk_display_source_get_widget(state->src);
-    gtk_window_set_default_size (GTK_WINDOW (window), 400, 400);
+    gtk_window_set_default_size (GTK_WINDOW (window),
+                                 getopt_get_int (gopt, "width"),
+                                 getopt_get_int (gopt, "height"));
     gtk_container_add(GTK_CONTAINER(window), canvas);
     gtk_widget_show (window);
     gtk_widget_show (canvas); // XXX Show all causes errors!

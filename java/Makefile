@@ -17,29 +17,31 @@ PLUGINS_CLASS := $(addsuffix .class, $(addprefix $(BUILD_PATH)/, $(PLUGINS_NAMES
 
 all: $(ROB550_JAR)
 
-$(LCMTYPES_CLASS): $(LCMTYPES_JAVA)
+src/rob550/lcmtypes/%.java: ../lcmtypes/%.lcm
+	@echo "\t$<"
+	@lcm-gen -j --jpath=src --jdefaultpkg=rob550.lcmtypes $<
+
+.LCMTYPES_CLASS: $(LCMTYPES_JAVA)
 	@echo "[java/lcmtypes]"
 	@echo "\t$(LCMTYPES_JAVA)"
 	@javac -classpath $(LCM_JAR) -d $(BUILD_PATH) $(LCMTYPES_JAVA)
+	@touch .LCMTYPES_CLASS
 
-$(PLUGINS_CLASS): $(PLUGINS_JAVA)
+$(PLUGINS_CLASS): $(PLUGINS_JAVA) .LCMTYPES_CLASS
 	@echo "[java/plugins]"
 	@echo "\t$(PLUGINS_CLASS)"
 	@javac -classpath $(BUILD_PATH):$(LCM_JAR) -d $(BUILD_PATH) $(PLUGINS_JAVA)
 
-$(ROB550_JAR): $(LCMTYPES_CLASS) $(PLUGINS_CLASS)
+$(ROB550_JAR): .LCMTYPES_CLASS $(PLUGINS_CLASS)
 	@echo "[java/rob550.jar]"
 	@echo "$(ROB550_JAR)"
 	@jar cf $(ROB550_JAR) -C $(BUILD_PATH) .
-
-src/rob550/lcmtypes/%.java: ../lcmtypes/%.lcm
-	@echo "\t$<"
-	@lcm-gen -j --jpath=src --jdefaultpkg=rob550.lcmtypes $<
 
 builddir:
 	@mkdir -p $(BUILD_PATH)
 
 clean:
-	@echo "clean [java/lcmtypes]"; rm -f *~ $(LCMTYPES_JAVA)
+	@echo "clean [java/lcmtypes]"; rm -f $(SOURCE_PATH)/rob550/lcmtypes/*
 	@echo "clean [java/build]"; rm -rf build/*
 	@echo "clean [java/rob550.jar]"; rm -f $(ROB550_JAR)
+	@rm -f *~ .LCMTYPES_CLASS

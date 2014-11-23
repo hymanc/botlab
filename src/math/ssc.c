@@ -42,13 +42,15 @@ ssc_pose_printf (const double X[6], const char *name, bool degree, bool rowvec)
 int
 ssc_inverse_gsl (gsl_vector *X_ji, gsl_matrix *Jminus, const gsl_vector *X_ij)
 {
-    assert (X_ji->size == 6 && X_ij->size == 6);
+    assert (X_ji->size == 6 && X_ji->stride == 1);
+    assert (X_ij->size == 6 && X_ij->stride == 1);
+
     if (Jminus) {
         assert (Jminus->size1 == 6 && Jminus->size2 == 6 && Jminus->tda == 6);
         return ssc_inverse (X_ji->data, Jminus->data, X_ij->data);
-    } else {
-        return ssc_inverse (X_ji->data, NULL, X_ij->data);
     }
+    else
+        return ssc_inverse (X_ji->data, NULL, X_ij->data);
 }
 
 int
@@ -119,13 +121,16 @@ ssc_inverse (double X_ji[6], double Jminus[6*6], const double X_ij[6])
 int
 ssc_head2tail_gsl (gsl_vector *X_ik, gsl_matrix *Jplus, const gsl_vector *X_ij, const gsl_vector *X_jk)
 {
-    assert (X_ik->size == 6 && X_ij->size == 6 && X_jk->size == 6);
+    assert (X_ik->size == 6 && X_ik->stride == 1);
+    assert (X_ij->size == 6 && X_ij->stride == 1);
+    assert (X_jk->size == 6 && X_jk->stride == 1);
+
     if (Jplus) {
         assert (Jplus->size1 == 6 && Jplus->size2 == 12 && Jplus->tda == 12);
         return ssc_head2tail (X_ik->data, Jplus->data, X_ij->data, X_jk->data);
-    } else {
-        return ssc_head2tail (X_ik->data, NULL, X_ij->data, X_jk->data);
     }
+    else
+        return ssc_head2tail (X_ik->data, NULL, X_ij->data, X_jk->data);
 }
 
 int
@@ -235,13 +240,16 @@ ssc_head2tail (double X_ik[6], double Jplus[6*12], const double X_ij[6], const d
 int
 ssc_tail2tail_gsl (gsl_vector *X_jk, gsl_matrix *Jtail, const gsl_vector *X_ij, const gsl_vector *X_ik)
 {
-    assert (X_jk->size == 6 && X_ij->size == 6 && X_ik->size == 6);
+    assert (X_jk->size == 6 && X_jk->stride == 1);
+    assert (X_ij->size == 6 && X_ij->stride == 1);
+    assert (X_ik->size == 6 && X_ik->stride == 1);
+
     if (Jtail) {
         assert (Jtail->size1 == 6 && Jtail->size2 == 12 && Jtail->tda == 12);
         return ssc_tail2tail (X_jk->data, Jtail->data, X_ij->data, X_ik->data);
-    } else {
-        return ssc_tail2tail (X_jk->data, NULL, X_ij->data, X_ik->data);
     }
+    else
+        return ssc_tail2tail (X_jk->data, NULL, X_ij->data, X_ik->data);
 }
 
 int
@@ -280,7 +288,9 @@ ssc_tail2tail (double X_jk[6], double Jtail[6*12], const double X_ij[6], const d
 int
 ssc_homo4x4_gsl (gsl_matrix *H_ij, const gsl_vector *X_ij)
 {
-    assert (H_ij->size1 == 4 && H_ij->size2 && H_ij->tda == 4 && X_ij->size == 6);
+    assert (H_ij->size1 == 4 && H_ij->size2 && H_ij->tda == 4);
+    assert (X_ij->size == 6 && X_ij->stride == 1);
+
     return ssc_homo4x4 (H_ij->data, X_ij->data);
 }
 
@@ -296,8 +306,8 @@ ssc_homo4x4 (double H_ij[4*4], const double X_ij[6])
         R_ij(2,0), R_ij(2,1), R_ij(2,2), X_ij(2),
         0,         0,         0,         1
     };
-
     memcpy (H_ij, H_ij_data, sizeof (H_ij_data));
+
     return GSL_SUCCESS;
 }
 

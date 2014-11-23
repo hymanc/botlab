@@ -1,9 +1,8 @@
-
 #include "types.h"
 
-void serialize_state(state_t* state, void* vbuf)
+void serialize_state(state_t *state, void *vbuf)
 {
-    uint8_t* buf = (uint8_t*)vbuf;
+    uint8_t *buf = vbuf;
 
     write64(buf +  0, state->utime);
 
@@ -42,9 +41,9 @@ void serialize_state(state_t* state, void* vbuf)
     return;
 }
 
-void deserialize_state(void* vbuf, state_t* state)
+void deserialize_state(void *vbuf, state_t *state)
 {
-    uint8_t* buf = (uint8_t*)vbuf;
+    uint8_t *buf = vbuf;
 
     state->utime = read64(buf + 0);
 
@@ -83,9 +82,9 @@ void deserialize_state(void* vbuf, state_t* state)
     return;
 }
 
-void serialize_command(command_t* command, void* vbuf)
+void serialize_command(command_t *command, void *vbuf)
 {
-    uint8_t*  buf  = (uint8_t*)vbuf;
+    uint8_t *buf  = vbuf;
 
     writeu16(buf + 0, command->motor_left_speed);
     writeu16(buf + 2, command->motor_right_speed);
@@ -99,9 +98,9 @@ void serialize_command(command_t* command, void* vbuf)
     return;
 }
 
-void deserialize_command(void* vbuf, command_t* command)
+void deserialize_command(void *vbuf, command_t *command)
 {
-    uint8_t* buf = (uint8_t*)vbuf;
+    uint8_t *buf = vbuf;
 
     command->motor_left_speed = readu16(buf + 0);
     command->motor_right_speed = readu16(buf + 2);
@@ -116,14 +115,13 @@ void deserialize_command(void* vbuf, command_t* command)
 }
 
 
-uint8_t calc_checksum(uint8_t* buf, uint32_t len)
+uint8_t calc_checksum(uint8_t *buf, uint32_t len)
 {
-    if(len <= 0) return 0;
+    if (len <= 0) return 0;
     uint8_t checksum = buf[0];
     uint32_t i;
     for(i = 1; i < len; i++)
-    {
         checksum = checksum ^ buf[i];
-    }
+
     return checksum;
 }

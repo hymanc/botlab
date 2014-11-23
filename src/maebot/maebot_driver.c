@@ -76,7 +76,7 @@ int
 writen (int fd, const void *buf, size_t count);
 
 void
-clamp(float *val, float min, float max)
+clamp (float *val, float min, float max)
 {
     *val = min (*val, max);
     *val = max (*val, min);
@@ -119,7 +119,7 @@ open_port (void)
     //attempt to open port
     int fd;
 
-    if ((fd = open("/dev/ttyO1", O_RDWR | O_NOCTTY | O_NONBLOCK)) == -1)
+    if ((fd = open ("/dev/ttyO1", O_RDWR | O_NOCTTY | O_NONBLOCK)) == -1)
 	    printf ("error opening /dev/ttyO1\r\n");
     else
 	    fcntl (fd, F_SETFL, 0);
@@ -170,7 +170,7 @@ writen (int fd, const void* buf, size_t count)
 	int i = 0;
 	while(i < count) {
 		ret = write (fd, ((char *)buf) + i, count - i);
-		if(ret <= 0) {
+		if (ret <= 0) {
 			printf ("Error writing to file descriptor.\n");
 			return 1;
 		}
@@ -545,6 +545,16 @@ main (int argc, char *argv[])
 	pthread_t sama5_state_thread_pid;
 	pthread_create (&sama5_state_thread_pid, NULL, sama5_state_thread, NULL);
 
-	while (1)
-		lcm_handle (lcm);
+	int64_t t0 = utime_now ();
+	const int64_t startup_time = 1000000;
+	while (1) {
+        const int timeout_ms = 500;
+        lcm_handle_timeout (lcm, timeout_ms);
+        int64_t now = utime_now ();
+        if (now-t0 > startup_time && now-shared_state.motor_feedback.utime > timeout_ms*1000) {
+            printf ("Error: the sama5 isn't talking (bottom-board)\n");
+            fflush (stdout);
+            exit (EXIT_FAILURE);
+        }
+	}
 }

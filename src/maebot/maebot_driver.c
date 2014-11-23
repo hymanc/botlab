@@ -13,6 +13,8 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
+#include "common/timestamp.h"
+
 #include <lcm/lcm.h>
 #include "lcmtypes/maebot_diff_drive_t.h"
 #include "lcmtypes/maebot_motor_feedback_t.h"
@@ -250,8 +252,13 @@ sama5_state_thread (void *arg)
 
 		pthread_mutex_lock (&statelock);
 
-        shared_state.motor_feedback.utime = state.utime;
-        shared_state.sensor_data.utime = state.utime;
+        /* bug - published utimes should be from the variscite
+           shared_state.motor_feedback.utime = state.utime;
+           shared_state.sensor_data.utime = state.utime;
+        */
+        int64_t now = utime_now ();
+        shared_state.motor_feedback.utime = now;
+        shared_state.sensor_data.utime = now;
 
 		// Copy motor feedback
 		shared_state.motor_feedback.encoder_left_ticks = state.encoder_left_ticks;

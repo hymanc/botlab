@@ -17,12 +17,10 @@ main (int argc, char *argv[])
 {
     fasttrig_init ();
 
-    GSLU_VECTOR_VIEW (x_ij, 6);
-    ssc_pose_set_i (x_ij.data, 1, 2, 3, 4, 5, 6);
+    GSLU_VECTOR_VIEW (x_ij, 6, {1, 2, 3, 4, 5, 6});
     gslu_vector_printfc (&x_ij.vector, "x_ij", NULL, CblasTrans);
 
-    GSLU_VECTOR_VIEW (x_jk, 6);
-    ssc_pose_set_i (x_jk.data, 6, 5, 4, 3, 2, 1);
+    GSLU_VECTOR_VIEW (x_jk, 6, {6, 5, 4, 3, 2, 1});
     gslu_vector_printfc (&x_jk.vector, "x_jk", NULL, CblasTrans);
 
     // ssc_inverse
@@ -75,22 +73,4 @@ main (int argc, char *argv[])
 
     ssc_homo4x4 (H_ik.data, x_ik.data);
     gslu_matrix_printf (&H_ik.matrix, "H_ik_gsl");
-
-    // ssc relative sensor pose
-    GSLU_VECTOR_VIEW (x_lvj, 6, {-0.0000, 0.0000, -0.0000, 0.0347, 0.0089, 2.9357});
-    GSLU_VECTOR_VIEW (x_lvi, 6, {-0.0000, 0.0000, -0.0000, 0.0387, -0.0000, 2.9583});
-    GSLU_VECTOR_VIEW (x_vjc, 6, {0.0, -0.2500, 0.0, 1.1921, 0.0, 1.5708});
-    GSLU_VECTOR_VIEW (x_vic, 6, {0.0, -0.2500, 0.0, 1.1921, 0.0, 1.5708});
-
-    GSLU_VECTOR_VIEW (x_sji, 6);
-    GSLU_MATRIX_VIEW (J_sji, 6, 12);
-    ssc_relative_sensor_pose (x_sji.data, J_sji.data, x_lvj.data, x_lvi.data, x_vjc.data, x_vic.data);
-    gslu_vector_printf (&x_sji.vector, "relative sensor xji");
-    gslu_matrix_printf (&J_sji.matrix, "relative sensor Jji");
-
-    // ssc observation model
-    double cam_jacobian[5*12];
-    ssc_jacobian_camera_aerph (cam_jacobian, x_lvj.data, x_lvi.data, x_vjc.data, x_vic.data);
-    gsl_matrix_view cam_jacobian_gsl = gsl_matrix_view_array (cam_jacobian, 5, 12);
-    gslu_matrix_printf (&cam_jacobian_gsl.matrix, "om camera RAE jacobian");
 }

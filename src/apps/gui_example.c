@@ -274,6 +274,9 @@ state_destroy (state_t *state)
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     rob550_init (argc, argv);
     state_t *state = state_create ();
 

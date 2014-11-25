@@ -116,6 +116,9 @@ command_loop (void *user)
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     getopt_t *gopt = getopt_create ();
     getopt_add_bool (gopt, 'h', "help", 0, "Show this help screen");
     getopt_add_bool (gopt, 'i', "idle", 0, "Command all servos to idle");

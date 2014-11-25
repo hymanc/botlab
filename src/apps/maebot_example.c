@@ -313,6 +313,9 @@ sensor_data_handler (const lcm_recv_buf_t *rbuf, const char* channel,
 int
 main(int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     vx_global_init ();
 
     // === State initialization ============================

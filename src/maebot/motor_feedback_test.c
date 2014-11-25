@@ -28,6 +28,9 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
 	lcm_t *lcm = lcm_create (NULL);
 	if(!lcm)
 		return 1;

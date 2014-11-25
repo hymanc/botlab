@@ -94,6 +94,9 @@ uint8_t readu8(int fd)
 
 int main(int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     int opt;
     while ((opt = getopt(argc, argv, "dh")) != -1) {
         switch (opt) {

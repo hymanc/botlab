@@ -9,6 +9,9 @@
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     lcm_t *lcm = lcm_create (NULL);
     maebot_laser_t msg;
 

@@ -272,6 +272,9 @@ send_cmds (void *data)
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     vx_global_init ();
 
     state_t *state = calloc (1, sizeof(*state));

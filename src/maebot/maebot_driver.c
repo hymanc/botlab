@@ -495,6 +495,9 @@ leds_write_thread (void *arg)
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     maebot_shared_state_init (&shared_state);
 
 	lcm = lcm_create (NULL);

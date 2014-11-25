@@ -34,9 +34,12 @@ diff_drive_thread (void *arg)
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     if (pthread_mutex_init (&msg_mutex, NULL)) {
         printf ("mutex init failed\n");
-        return 1;
+        exit (EXIT_FAILURE);
     }
 
     // Init msg
@@ -88,5 +91,5 @@ main (int argc, char *argv[])
 
     usleep (100000);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

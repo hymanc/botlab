@@ -60,6 +60,9 @@ scan_loop (void *args)
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     state_t *state = global_state = calloc (1, sizeof(*state));
 
     state->gopt = getopt_create ();

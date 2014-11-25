@@ -162,6 +162,9 @@ runthread (void *_p)
 int
 main (int argc, char *argv[] )
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     state_t *state = calloc(1, sizeof(*state));
     state->gopt = getopt_create();
 

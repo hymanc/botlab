@@ -11,6 +11,9 @@
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     char *url = NULL;
 
     if (argc > 1) {

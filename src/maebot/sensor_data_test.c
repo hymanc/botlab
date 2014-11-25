@@ -33,9 +33,12 @@ sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 int
 main (int argc, char *argv[])
 {
+    // so that redirected stdout won't be insanely buffered.
+    setvbuf (stdout, (char *) NULL, _IONBF, 0);
+
     lcm_t *lcm = lcm_create (NULL);
-    if(!lcm)
-        return 1;
+    if (!lcm)
+        return EXIT_FAILURE;
 
     maebot_sensor_data_t_subscribe (lcm,
                                     "MAEBOT_SENSOR_DATA",
@@ -45,6 +48,6 @@ main (int argc, char *argv[])
     while (1)
         lcm_handle (lcm);
 
-    return 0;
+    return EXIT_SUCCESS;
 
 }

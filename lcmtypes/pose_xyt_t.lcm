@@ -1,0 +1,7 @@
+struct pose_xyt_t
+{
+    int64_t utime;
+
+    double  xyt[3];     // x [m], y [m], theta [rad]
+    double  Sigma[9];   // 3x3 covariance matrix
+}

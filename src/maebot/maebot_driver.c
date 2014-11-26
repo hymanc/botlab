@@ -40,26 +40,27 @@ const uint32_t HEADER_BYTES = 12;
 const uint32_t UART_MAGIC_NUMBER = 0xFDFDFDFD;  // Marks Beginning of Message
 
 /* Reads the value of the gpio value file and returns a boolean 0 or 1 */
-static unsigned char _read_gpio(int fd)
+static unsigned char
+_read_gpio (int fd)
 {
 	char c;
-	lseek(fd, 0, SEEK_SET);
-	if (read(fd, &c, 1) != 1) {
-        printf("error reading gpio\r\n");
+	lseek (fd, 0, SEEK_SET);
+	if (read (fd, &c, 1) != 1) {
+        printf ("error reading gpio\r\n");
         return 0;
-	};
+	}
 	return (c == '1');
 }
 
 
-typedef struct maebot_shared_state {
+typedef struct maebot_shared_state maebot_shared_state_t;
+struct maebot_shared_state {
     maebot_diff_drive_t diff_drive;
     maebot_motor_feedback_t motor_feedback;
     maebot_sensor_data_t sensor_data;
     maebot_leds_t leds;
     maebot_laser_t laser;
-
-} maebot_shared_state_t;
+};
 
 pthread_mutex_t statelock;
 
@@ -68,7 +69,7 @@ maebot_shared_state_t shared_state;
 pthread_cond_t leds_write_cond;
 pthread_mutex_t leds_write_cond_mutex;
 
-lcm_t* lcm;
+lcm_t *lcm;
 int port;
 int i2c_leds_fd;
 
@@ -241,7 +242,7 @@ sama5_state_thread (void *arg)
 {
 	state_t state;
 
-    int user_button = open("/sys/class/gpio/gpio174/value", O_RDONLY);
+    int user_button = open ("/sys/class/gpio/gpio174/value", O_RDONLY);
 	if (user_button < 0) {
 		printf("Error opening file: %m\n");
 	}
@@ -252,33 +253,29 @@ sama5_state_thread (void *arg)
 
 		pthread_mutex_lock (&statelock);
 
-        /* bug - published utimes should be from the variscite
-           shared_state.motor_feedback.utime = state.utime;
-           shared_state.sensor_data.utime = state.utime;
-        */
+        // published utimes should be from the variscite
         int64_t now = utime_now ();
         shared_state.motor_feedback.utime = now;
         shared_state.sensor_data.utime = now;
+
+        shared_state.motor_feedback.utime_sama5 = state.utime;
+        shared_state.sensor_data.utime_sama5 = state.utime;
 
 		// Copy motor feedback
 		shared_state.motor_feedback.encoder_left_ticks = state.encoder_left_ticks;
 		shared_state.motor_feedback.encoder_right_ticks = state.encoder_right_ticks;
 
-		shared_state.motor_feedback.motor_left_commanded_speed =
-            (float)state.motor_left_speed_cmd / UINT16_MAX;
+		shared_state.motor_feedback.motor_left_commanded_speed = (float)state.motor_left_speed_cmd / UINT16_MAX;
 		if (state.flags & flags_motor_left_reverse_cmd_mask)
             shared_state.motor_feedback.motor_left_commanded_speed *= -1.0;
 
-		shared_state.motor_feedback.motor_left_commanded_speed =
-            (float)state.motor_right_speed_cmd / UINT16_MAX;
+		shared_state.motor_feedback.motor_left_commanded_speed = (float)state.motor_right_speed_cmd / UINT16_MAX;
 		if (state.flags & flags_motor_right_reverse_cmd_mask)
             shared_state.motor_feedback.motor_right_commanded_speed *= -1.0;
 
 		// Actual same as commanded for now. No slewing logic yet.
-		shared_state.motor_feedback.motor_left_actual_speed =
-            shared_state.motor_feedback.motor_left_commanded_speed;
-		shared_state.motor_feedback.motor_right_actual_speed =
-            shared_state.motor_feedback.motor_right_commanded_speed;
+		shared_state.motor_feedback.motor_left_actual_speed = shared_state.motor_feedback.motor_left_commanded_speed;
+		shared_state.motor_feedback.motor_right_actual_speed = shared_state.motor_feedback.motor_right_commanded_speed;
 
 		// Copy sensor data
 		shared_state.sensor_data.accel[0] = state.accel[0];
@@ -298,7 +295,7 @@ sama5_state_thread (void *arg)
 		shared_state.motor_feedback.motor_current_right = state.motor_current_right;
 		shared_state.sensor_data.power_button_pressed = state.flags & flags_power_button_mask;
 
-		shared_state.sensor_data.user_button_pressed = _read_gpio(user_button);
+		shared_state.sensor_data.user_button_pressed = _read_gpio (user_button);
 
 		maebot_motor_feedback_t_publish (lcm, "MAEBOT_MOTOR_FEEDBACK", &shared_state.motor_feedback);
 		maebot_sensor_data_t_publish (lcm, "MAEBOT_SENSOR_DATA", &shared_state.sensor_data);
@@ -485,7 +482,7 @@ leds_write (void)
 void *
 leds_write_thread (void *arg)
 {
-    while(1) {
+    while (1) {
         pthread_mutex_lock (&leds_write_cond_mutex);
         pthread_cond_wait (&leds_write_cond, &leds_write_cond_mutex);
         pthread_mutex_unlock (&leds_write_cond_mutex);
@@ -500,19 +497,19 @@ main (int argc, char *argv[])
 {
     maebot_shared_state_init (&shared_state);
 
-	lcm = lcm_create ("udpm://239.255.76.67:7667?ttl=0");
+	lcm = lcm_create (NULL);
 	if (!lcm)
-		return 1;
+		exit (EXIT_FAILURE);
 
     if (pthread_mutex_init (&statelock, NULL)) {
         printf ("mutex initialization failed\n");
-        return 1;
+        exit (EXIT_FAILURE);
     }
 
 	port = open_port ();
 	if (port == -1) {
 		printf ("error opening port\n");
-		return 1;
+		exit (EXIT_FAILURE);
 	}
 
 	port = configure_port (port);
@@ -521,12 +518,12 @@ main (int argc, char *argv[])
 
     if (pthread_cond_init (&leds_write_cond, NULL)) {
         printf ("condition variable init failed\n");
-        return 1;
+        exit (EXIT_FAILURE);
     }
 
     if (pthread_mutex_init (&leds_write_cond_mutex, NULL)) {
         printf ("mutex initialization failed\n");
-        return 1;
+        exit (EXIT_FAILURE);
     }
     pthread_t leds_write_thread_pid;
     pthread_create (&leds_write_thread_pid, NULL, leds_write_thread, NULL);

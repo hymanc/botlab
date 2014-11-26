@@ -1,6 +1,7 @@
 struct maebot_motor_feedback_t
 {
-    int64_t utime;
+    int64_t utime;       // variscite
+    int64_t utime_sama5; // sama5
 
     int32_t encoder_left_ticks;
     int32_t encoder_right_ticks;

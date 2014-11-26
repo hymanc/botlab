@@ -1,6 +1,7 @@
 struct maebot_sensor_data_t
 {
-    int64_t utime;
+    int64_t utime;       // variscite
+    int64_t utime_sama5; // sama5
 
     int16_t accel[3];
     int16_t gyro[3];

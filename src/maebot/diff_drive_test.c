@@ -22,7 +22,10 @@ diff_drive_thread (void *arg)
         utime_start = utime_now ();
 
         pthread_mutex_lock (&msg_mutex);
-        maebot_diff_drive_t_publish (lcm, "MAEBOT_DIFF_DRIVE", &msg);
+        {
+            msg.utime = utime_now ();
+            maebot_diff_drive_t_publish (lcm, "MAEBOT_DIFF_DRIVE", &msg);
+        }
         pthread_mutex_unlock (&msg_mutex);
 
         usleep (CMD_PRD - (utime_now() - utime_start));

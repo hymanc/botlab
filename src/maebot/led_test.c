@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <lcm/lcm.h>
 
+#include "common/timestamp.h"
+
 #include "lcmtypes/maebot_leds_t.h"
 
 int
@@ -23,6 +25,7 @@ main (int argc, char *argv[])
     msg.top_rgb_led_right = 0x100000;
     msg.bottom_led_left = 1;
 
+    msg.utime = utime_now ();
     maebot_leds_t_publish (lcm, "MAEBOT_LEDS", &msg);
 
     usleep (1000000);
@@ -33,6 +36,7 @@ main (int argc, char *argv[])
     msg.bottom_led_left = 0;
     msg.bottom_led_middle = 1;
 
+    msg.utime = utime_now ();
     maebot_leds_t_publish (lcm, "MAEBOT_LEDS", &msg);
 
     usleep (1000000);
@@ -43,6 +47,7 @@ main (int argc, char *argv[])
     msg.bottom_led_middle = 0;
     msg.bottom_led_right = 1;
 
+    msg.utime = utime_now ();
     maebot_leds_t_publish (lcm, "MAEBOT_LEDS", &msg);
 
     usleep (1000000);
@@ -54,6 +59,7 @@ main (int argc, char *argv[])
     msg.bottom_led_middle = 1;
     msg.bottom_led_right = 1;
 
+    msg.utime = utime_now ();
     maebot_leds_t_publish (lcm, "MAEBOT_LEDS", &msg);
 
     usleep (1000000);
@@ -66,6 +72,7 @@ main (int argc, char *argv[])
     msg.bottom_led_right = 0;
     msg.line_sensor_leds = 0;
 
+    msg.utime = utime_now ();
     maebot_leds_t_publish (lcm, "MAEBOT_LEDS", &msg);
 
     usleep (1000000);
@@ -75,6 +82,7 @@ main (int argc, char *argv[])
     msg.top_rgb_led_right = 0x10;
     msg.line_sensor_leds = 1;
 
+    msg.utime = utime_now ();
     maebot_leds_t_publish (lcm, "MAEBOT_LEDS", &msg);
 
     return 0;

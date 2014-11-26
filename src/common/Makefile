@@ -10,7 +10,7 @@ LIBCOMMON_OBJS = \
 	config.o \
 	getopt.o \
 	ioutils.o \
-        param_widget.o \
+	param_widget.o \
 	pg.o \
 	serial.o \
 	ssocket.o \

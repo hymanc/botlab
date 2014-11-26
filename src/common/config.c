@@ -124,6 +124,7 @@ get_ch_file (parser_t *p)
 {
     parser_file_t *pf = (parser_file_t *) p;
     int ch;
+    int begin_cpp_comment = 0;
 
     /* If a character has been put back with unget_ch, get it. */
     if (p->extra_ch) {
@@ -133,6 +134,23 @@ get_ch_file (parser_t *p)
     }
 
     while ((ch = getc (pf->file)) != EOF) {
+        // Handle c++-style aka single line comments
+        if (!pf->in_comment) {
+            if (ch == '/') {
+                if (begin_cpp_comment) {
+                    pf->in_comment = 1;
+                    begin_cpp_comment = 0;
+                } else {
+                    begin_cpp_comment = 1;
+                    continue;
+                }
+            } else if (begin_cpp_comment) {
+                // If we read a lone fwdslash not followed by another one
+                p->extra_ch = ch;
+                return '/';
+            }
+        }
+
         if (ch == '\n') {
             pf->row++;
             pf->col = 0;

@@ -325,7 +325,14 @@ pg_gd_boxes (parameter_gui_t *pg, const char *name)
 void
 pg_sd_boxes (parameter_gui_t *pg, const char *name, double value)
 {
-    ERROR ("WARNING: pg_sd_boxes() - not implemented\n");
+    ParameterGUI *gtkpg = GTK_PARAM_GUI (pg->paramWidget);
+    GtkWidget *w = g_hash_table_lookup (gtkpg->boxes_params, name);
+    if(w==NULL) {
+        fprintf (stderr, "param_widget: invalid parameter [%s]\n", name);
+        return;
+    }
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON (w), value);
+    return;
 }
 
 

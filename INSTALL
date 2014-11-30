@@ -1,10 +1,8 @@
 If you would like to compile the course libraries on your own machines, and are running ubuntu 12.04, you can run the following commands as root or using sudo to install the necessary packages. Note these are actually a super-set of the packages, some of these are just useful to have. For other versions of linux, similar packages should exist.
 
-sudo apt-get -y install emacs vim-gtk cvs subversion git-core gitk units octave
-imagemagick ssh smartmontools nmap netcat curl wireshark traceroute libav-tools
-mplayer vlc sysstat valgrind autopoint xchat mesa-utils pkg-config curl
+sudo apt-get -y install emacs vim-gtk cvs subversion git-core gitk units octave imagemagick ssh smartmontools nmap netcat curl wireshark traceroute libav-tools mplayer vlc sysstat valgrind autopoint xchat mesa-utils pkg-config curl
 
-sudo apt-get -y install autoconf automake autotools-dev libglib2.0-dev manpages-dev manpages-posix-dev libgl1-mesa-dev gtk-doc-tools libgtk2.0-dev python-dev libusb-dev libusb-1.0-0-dev libfuse-dev libi2c-dev libdc1394-22-dev libdc1394-utils libgsl0-dev gsl-doc-info gsl-doc-pdf
+sudo apt-get -y install autoconf automake autotools-dev libglib2.0-dev manpages-dev manpages-posix-dev libgl1-mesa-dev gtk-doc-tools libgtk2.0-dev python-dev libusb-dev libusb-1.0-0-dev libfuse-dev libi2c-dev libdc1394-22-dev libdc1394-utils libgsl0-dev gsl-doc-info gsl-doc-pdf realpath
 
 sudo apt-get -y install ant openjdk-6-jdk
 

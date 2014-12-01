@@ -15,10 +15,6 @@
 
 #include "xyt.h"
 
-#define WHEEL_DIAMETER        0.032    // [m], 32 mm
-#define WHEEL_BASELINE        0.080    // [m], 80 mm
-#define TICKS_PER_REVOLUTION  16       // encoder tickers per motor revolution
-#define GEAR_RATIO            30       // 30:1 gear ratio
 #define ALPHA_STRING          "1.0"  // longitudinal covariance scaling factor
 #define BETA_STRING           "1.0"  // lateral side-slip covariance scaling factor
 #define GYRO_RMS_STRING       "1.0"    // [deg/s]

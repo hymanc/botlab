@@ -37,10 +37,26 @@ xyt_rbt_gsl (gsl_matrix *T, const gsl_vector *X_ij)
 int
 xyt_inverse (double X_ji[3], double J_minus[3*3], const double X_ij[3])
 {
-    // IMPLEMENT ME
-
-    if (J_minus != NULL) {
-        // IMPLEMENT ME
+    double xij = X_ij[0];
+    double yij = X_ij[1];
+    double tij = X_ij[2];
+    X_ji[0] = -xij*cos(tij) - yij*sin(tij);
+    X_ji[1] = xij*sin(tij) - yij*cos(tij);
+    X_ji[2] = -tij;
+    if (J_minus != NULL) 
+    {
+	// Row 1
+	J_minus[0] = -cos(tij);
+	J_minus[1] = -sin(tij);
+	J_minus[2] = X_ji[1];
+	// Row 2
+	J_minus[3] = sin(tij);
+	J_minus[4] = -cos(tij);
+	J_minus[5] = -X_ji[0];
+	// Row 3
+	J_minus[6] = 0;
+	J_minus[7] = 0;
+	J_minus[8] = 1;
     }
     return GSL_SUCCESS;
 }
@@ -115,14 +131,22 @@ xyt_head2tail_gsl (gsl_vector *X_ik, gsl_matrix *J_plus, const gsl_vector *X_ij,
 }
 
 
+/**
+ * @brief (-)xij(+)xik
+ */
 int
 xyt_tail2tail (double X_jk[3], double J_tail[3*6], const double X_ij[3], const double X_ik[3])
 {
-    if (J_tail == NULL) {
-        // IMPLEMENT ME
+    double X_ji[3];
+    if (J_tail == NULL) 
+    {
+        xyt_inverse (X_ji, NULL, X_ij);
+	xyt_head2tail(X_jk, NULL, Xji, X_ik);
     }
-    else {
-        // IMPLEMENT ME
+    else 
+    {
+	xyt_inverse (X_ji, NULL, X_ij);
+	xyt_head2tail(X_jk, J_tail, X_ik);
     }
     return GSL_SUCCESS;
 }

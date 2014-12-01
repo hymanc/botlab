@@ -6,8 +6,6 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_vector.h>
 
-#include "fasttrig.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,18 +19,23 @@ extern "C" {
 %   frame 2.
 */
 static inline void
-so3_rotx (double Rx[9], const double phi)
+so3_rotx (double Rx[3*3], double phi)
 {
+#ifdef _GNU_SOURCE
     double s, c;
-    fsincos (phi, &s, &c);
-    const double data[] = { 1,  0, 0,
-                            0,  c, s,
-                            0, -s, c };
-    memcpy (Rx, data, 9 * sizeof(double));
+    sincos (phi, &s, &c);
+#else
+    double s = sin (phi), c = cos (phi);
+#endif
+
+    double _Rx[3*3] = { 1,  0, 0,
+                        0,  c, s,
+                        0, -s, c };
+    memcpy (Rx, _Rx, sizeof _Rx);
 }
 
 static inline void
-so3_rotx_gsl (gsl_matrix *Rx, const double phi)
+so3_rotx_gsl (gsl_matrix *Rx, double phi)
 {
     assert (Rx->size1==3 && Rx->size2==3 && Rx->tda==3);
     so3_rotx (Rx->data, phi);
@@ -47,18 +50,23 @@ so3_rotx_gsl (gsl_matrix *Rx, const double phi)
 %   frame 2.
 */
 static inline void
-so3_roty (double Ry[9], const double theta)
+so3_roty (double Ry[3*3], double theta)
 {
+#ifdef _GNU_SOURCE
     double s, c;
-    fsincos (theta, &s, &c);
-    const double data[] = { c, 0, -s,
-                            0, 1,  0,
-                            s, 0,  c };
-    memcpy (Ry, data, 9 * sizeof(double));
+    sincos (theta, &s, &c);
+#else
+    double s = sin (theta), c = cos (theta);
+#endif
+
+    double _Ry[3*3] = { c, 0, -s,
+                        0, 1,  0,
+                        s, 0,  c };
+    memcpy (Ry, _Ry, sizeof _Ry);
 }
 
 static inline void
-so3_roty_gsl (gsl_matrix *Ry, const double theta)
+so3_roty_gsl (gsl_matrix *Ry, double theta)
 {
     assert (Ry->size1==3 && Ry->size2==3 && Ry->tda==3);
     so3_roty (Ry->data, theta);
@@ -74,18 +82,23 @@ so3_roty_gsl (gsl_matrix *Ry, const double theta)
 %   frame 2.
 */
 static inline void
-so3_rotz (double Rz[9], const double psi)
+so3_rotz (double Rz[3*3], double psi)
 {
+#ifdef _GNU_SOURCE
     double s, c;
-    fsincos (psi, &s, &c);
-    const double data[] = { c, s, 0,
-                           -s, c, 0,
-                            0, 0, 1 };
-    memcpy (Rz, data, 9 * sizeof(double));
+    sincos (psi, &s, &c);
+#else
+    double s = sin (psi), c = cos (psi);
+#endif
+
+    double _Rz[3*3] = {  c, s, 0,
+                        -s, c, 0,
+                         0, 0, 1 };
+    memcpy (Rz, _Rz, sizeof _Rz);
 }
 
 static inline void
-so3_rotz_gsl (gsl_matrix *Rz, const double psi)
+so3_rotz_gsl (gsl_matrix *Rz, double psi)
 {
     assert (Rz->size1==3 && Rz->size2==3 && Rz->tda==3);
     so3_rotz (Rz->data, psi);
@@ -101,16 +114,23 @@ so3_rotz_gsl (gsl_matrix *Rz, const double psi)
 %   frame 1.
 */
 static inline void
-so3_rotxyz (double R[9], const double rph[3])
+so3_rotxyz (double R[3*3], const double rph[3])
 {
+#ifdef _GNU_SOURCE
     double sr, sp, sh, cr, cp, ch;
-    fsincos (rph[0], &sr, &cr);
-    fsincos (rph[1], &sp, &cp);
-    fsincos (rph[2], &sh, &ch);
-    const double data[] = {  ch*cp, -sh*cr + ch*sp*sr,  sh*sr + ch*sp*cr,
-                             sh*cp,  ch*cr + sh*sp*sr, -ch*sr + sh*sp*cr,
-                            -sp,     cp*sr,             cp*cr             };
-    memcpy (R, data, 9 * sizeof(double));
+    sincos (rph[0], &sr, &cr);
+    sincos (rph[1], &sp, &cp);
+    sincos (rph[2], &sh, &ch);
+#else
+    double sr = sin (rph[0]), cr = cos (rph[0]);
+    double sp = sin (rph[1]), cp = cos (rph[1]);
+    double sh = sin (rph[2]), ch = cos (rph[2]);
+#endif
+
+    double _R[3*3] = { ch*cp, -sh*cr + ch*sp*sr,  sh*sr + ch*sp*cr,
+                       sh*cp,  ch*cr + sh*sp*sr, -ch*sr + sh*sp*cr,
+                         -sp,             cp*sr,             cp*cr };
+    memcpy (R, _R, sizeof _R);
 }
 
 static inline void
@@ -121,9 +141,8 @@ so3_rotxyz_gsl (gsl_matrix *R, const gsl_vector *rph)
     // when rph is vector view, stride might not be 1
     double rph_data[3] = {rph->data[0], rph->data[rph->stride], rph->data[2*rph->stride]};
 
-    if (R->tda==3) {
+    if (R->tda==3)
         so3_rotxyz (R->data, rph_data);
-    }
     else {
         double rot[9];
         so3_rotxyz (rot, rph_data);
@@ -131,19 +150,6 @@ so3_rotxyz_gsl (gsl_matrix *R, const gsl_vector *rph)
             for (int j=0; j < 3; ++j)
                 gsl_matrix_set (R, i, j, rot[i*3 + j]);
     }
-}
-
-static inline void
-so3_rotxyz_cmath (double R[9], const double rph[3])
-{
-    double sr, sp, sh, cr, cp, ch;
-    sr = sin(rph[0]); cr = cos(rph[0]);
-    sp = sin(rph[1]); cp = cos(rph[1]);
-    sh = sin(rph[2]); ch = cos(rph[2]);
-    const double data[] = {  ch*cp, -sh*cr + ch*sp*sr,  sh*sr + ch*sp*cr,
-                             sh*cp,  ch*cr + sh*sp*sr, -ch*sr + sh*sp*cr,
-                            -sp,     cp*sr,             cp*cr             };
-    memcpy (R, data, 9 * sizeof(double));
 }
 
 /*
@@ -154,19 +160,23 @@ so3_rotxyz_cmath (double R[9], const double rph[3])
 %
 */
 static inline void
-so3_rot2rph (const double R[9], double rph[3])
+so3_rot2rph (const double R[3*3], double rph[3])
 {
 #define R(i,j) (R[i*3+j])
     // heading
-    rph[2] = fatan2 (R(1,0), R(0,0));
+    rph[2] = atan2 (R(1,0), R(0,0));
+#ifdef _GNU_SOURCE
     double sh, ch;
-    fsincos (rph[2], &sh, &ch);
+    sincos (rph[2], &sh, &ch);
+#else
+    double sh = sin (rph[2]), ch = cos (rph[2]);
+#endif
 
     // pitch
-    rph[1] = fatan2 (-R(2,0), R(0,0)*ch + R(1,0)*sh);
+    rph[1] = atan2 (-R(2,0), R(0,0)*ch + R(1,0)*sh);
 
     // roll
-    rph[0] = fatan2 (R(0,2)*sh - R(1,2)*ch, -R(0,1)*sh + R(1,1)*ch);
+    rph[0] = atan2 (R(0,2)*sh - R(1,2)*ch, -R(0,1)*sh + R(1,1)*ch);
 #undef R
 }
 
@@ -184,18 +194,23 @@ so3_rot2rph_gsl (const gsl_matrix *R, gsl_vector *rph)
 %   frame 2 relative to coordinate frame 1.
 */
 static inline void
-so3_drotx (double dRx[9], const double phi)
+so3_drotx (double dRx[3*3], double phi)
 {
+#ifdef _GNU_SOURCE
     double s, c;
-    fsincos (phi, &s, &c);
-    const double data[9] = { 0,  0,  0,
-                             0, -s,  c,
-                             0, -c, -s };
-    memcpy (dRx, data, 9 * sizeof(double));
+    sincos (phi, &s, &c);
+#else
+    double s = sin (phi), c = cos (phi);
+#endif
+
+    double _dRx[3*3] = { 0,  0,  0,
+                         0, -s,  c,
+                         0, -c, -s };
+    memcpy (dRx, _dRx, sizeof _dRx);
 }
 
 static inline void
-so3_drotx_gsl (gsl_matrix *dRx, const double phi)
+so3_drotx_gsl (gsl_matrix *dRx, double phi)
 {
     assert (dRx->size1==3 && dRx->size2==3 && dRx->tda==3);
     so3_drotx (dRx->data, phi);
@@ -208,18 +223,23 @@ so3_drotx_gsl (gsl_matrix *dRx, const double phi)
 %   frame 2 relative to coordinate frame 1.
 */
 static inline void
-so3_droty (double dRy[9], const double theta)
+so3_droty (double dRy[3*3], double theta)
 {
+#ifdef _GNU_SOURCE
     double s, c;
-    fsincos (theta, &s, &c);
-    const double data[9] = { -s,  0, -c,
-                              0,  0,  0,
-                              c,  0, -s };
-    memcpy (dRy, data, 9 * sizeof(double));
+    sincos (theta, &s, &c);
+#else
+    double s = sin (theta), c = cos (theta);
+#endif
+
+    double _dRy[3*3] = { -s,  0, -c,
+                          0,  0,  0,
+                          c,  0, -s };
+    memcpy (dRy, _dRy, sizeof _dRy);
 }
 
 static inline void
-so3_droty_gsl (gsl_matrix *dRy, const double theta)
+so3_droty_gsl (gsl_matrix *dRy, double theta)
 {
     assert (dRy->size1==3 && dRy->size2==3 && dRy->tda==3);
     so3_droty (dRy->data, theta);
@@ -232,18 +252,23 @@ so3_droty_gsl (gsl_matrix *dRy, const double theta)
 %   frame 2 relative to coordinate frame 1.
 */
 static inline void
-so3_drotz (double dRz[9], const double psi)
+so3_drotz (double dRz[3*3], double psi)
 {
+#ifdef _GNU_SOURCE
     double s, c;
-    fsincos (psi, &s, &c);
-    const double data[9] = { -s,  c,  0,
-                             -c, -s,  0,
-                              0,  0,  0 };
-    memcpy (dRz, data, 9 * sizeof(double));
+    sincos (psi, &s, &c);
+#else
+    double s = sin (psi), c = cos (psi);
+#endif
+
+    double _dRz[3*3] = { -s,  c,  0,
+                         -c, -s,  0,
+                          0,  0,  0 };
+    memcpy (dRz, _dRz, sizeof _dRz);
 }
 
 static inline void
-so3_drotz_gsl (gsl_matrix *dRz, const double psi)
+so3_drotz_gsl (gsl_matrix *dRz, double psi)
 {
     assert (dRz->size1==3 && dRz->size2==3 && dRz->tda==3);
     so3_drotz (dRz->data, psi);
@@ -256,27 +281,27 @@ so3_drotz_gsl (gsl_matrix *dRz, const double psi)
 %   orthonormal rotation matrix R.
 */
 static inline void
-so3_quat2rot (const double q[4], double R[9])
+so3_quat2rot (const double q[4], double R[3*3])
 {
-    const double q0 = q[0], qx = q[1], qy = q[2], qz = q[3];
+    double q0 = q[0], qx = q[1], qy = q[2], qz = q[3];
 
-    const double q0q0 = q0*q0;
-    const double qxqx = qx*qx;
-    const double qyqy = qy*qy;
-    const double qzqz = qz*qz;
+    double q0q0 = q0*q0;
+    double qxqx = qx*qx;
+    double qyqy = qy*qy;
+    double qzqz = qz*qz;
 
-    const double q0qx = q0*qx;
-    const double q0qz = q0*qz;
-    const double q0qy = q0*qy;
-    const double qxqy = qx*qy;
-    const double qxqz = qx*qz;
-    const double qyqz = qy*qz;
+    double q0qx = q0*qx;
+    double q0qz = q0*qz;
+    double q0qy = q0*qy;
+    double qxqy = qx*qy;
+    double qxqz = qx*qz;
+    double qyqz = qy*qz;
 
-    const double data[9] =
+    double _R[3*3] =
         { q0q0 + qxqx - qyqy - qzqz,  2*(qxqy - q0qz),            2*(qxqz + q0qy),
           2*(qxqy + q0qz),            q0q0 - qxqx + qyqy - qzqz,  2*(qyqz - q0qx),
           2*(qxqz - q0qy),            2*(qyqz + q0qx),            q0q0 - qxqx - qyqy + qzqz };
-    memcpy (R, data, 9 * sizeof(double));
+    memcpy (R, _R, sizeof _R);
 }
 
 static inline void
@@ -294,14 +319,14 @@ so3_quat2rot_gsl (const gsl_vector *q, gsl_matrix *R)
 %   orthonormal rotation matrix R.
 */
 static inline void
-so3_rot2quat (const double R[9], double q[4])
+so3_rot2quat (const double R[3*3], double q[4])
 {
     // read
-    const double r00 = R[0], r01 = R[1], r02 = R[2];
-    const double r10 = R[3], r11 = R[4], r12 = R[5];
-    const double r20 = R[6], r21 = R[7], r22 = R[8];
+    double r00 = R[0], r01 = R[1], r02 = R[2];
+    double r10 = R[3], r11 = R[4], r12 = R[5];
+    double r20 = R[6], r21 = R[7], r22 = R[8];
 
-    const double tr = r00 + r11 + r22;
+    double tr = r00 + r11 + r22;
 
     double qw, qx, qy, qz;
     if (tr > 0) {
@@ -310,20 +335,23 @@ so3_rot2quat (const double R[9], double q[4])
         qx = (r21 - r12) / S;
         qy = (r02 - r20) / S;
         qz = (r10 - r01) / S;
-    } else if ((r00 > r11) && (r00 > r22)) {
-        const double S = sqrt (1.0 + r00 - r11 - r22) * 2; // S=4*qx
+    }
+    else if ((r00 > r11) && (r00 > r22)) {
+        double S = sqrt (1.0 + r00 - r11 - r22) * 2; // S=4*qx
         qw = (r21 - r12) / S;
         qx = 0.25 * S;
         qy = (r01 + r10) / S;
         qz = (r02 + r20) / S;
-    } else if (r11 > r22) {
-        const double S = sqrt (1.0 + r11 - r00 - r22) * 2; // S=4*qy
+    }
+    else if (r11 > r22) {
+        double S = sqrt (1.0 + r11 - r00 - r22) * 2; // S=4*qy
         qw = (r02 - r20) / S;
         qx = (r01 + r10) / S;
         qy = 0.25 * S;
         qz = (r12 + r21) / S;
-    } else {
-        const double S = sqrt (1.0 + r22 - r00 - r11) * 2; // S=4*qz
+    }
+    else {
+        double S = sqrt (1.0 + r22 - r00 - r11) * 2; // S=4*qz
         qw = (r10 - r01) / S;
         qx = (r02 + r20) / S;
         qy = (r12 + r21) / S;
@@ -351,7 +379,7 @@ so3_rot2quat_gsl (const gsl_matrix *R, gsl_vector *q)
 static inline void
 so3_quat2rph (const double q[4], double rph[3])
 {
-    double R[9];
+    double R[3*3];
     so3_quat2rot (q, R);
     so3_rot2rph (R, rph);
 }
@@ -372,7 +400,7 @@ so3_quat2rph_gsl (const gsl_vector *q, gsl_vector *rph)
 static inline void
 so3_rph2quat (const double rph[3], double q[4])
 {
-    double R[9];
+    double R[3*3];
     so3_rotxyz (R, rph);
     so3_rot2quat (R, q);
 }
@@ -397,17 +425,22 @@ so3_rph2quat_gsl (const gsl_vector *rph, gsl_vector *q)
 */
 static inline void
 so3_body2euler (const double pqr[3], const double rph[3],
-                double rph_dot[3], double J[18]) {
+                double rph_dot[3], double J[3*6]) {
 
     double p = pqr[0];
     double q = pqr[1];
     double r = pqr[2];
 
+#ifdef _GNU_SOURCE
     double sr, cr;
-    fsincos (rph[0], &sr, &cr);
+    sincos (rph[0], &sr, &cr);
     double sp, cp;
-    fsincos (rph[1], &sp, &cp);
-    double tp = ftan (rph[1]);
+    sincos (rph[1], &sp, &cp);
+#else
+    double sr = sin (rph[0]), cr = cos (rph[0]);
+    double sp = sin (rph[1]), cp = cos (rph[1]);
+#endif
+    double tp = tan (rph[1]);
     double kp = 1.0/cp;
 
     //Euler angular rates
@@ -419,7 +452,7 @@ so3_body2euler (const double pqr[3], const double rph[3],
         // Jacobian wrt
         // first row
         J[0] = 1;                   J[1] = sr*tp;                   J[2] = cr*tp;
-        J[3] = cr*tp*q-sr*tp*r;     J[4] = sr*kp*kp*q+cr*kp*kp*r;    J[5] = 0;
+        J[3] = cr*tp*q-sr*tp*r;     J[4] = sr*kp*kp*q+cr*kp*kp*r;   J[5] = 0;
         // second row
         J[6] = 0;                   J[7] = cr;                      J[8] = -sr;
         J[9] = -sr*q-cr*r;          J[10] = 0;                      J[11] = 0;
@@ -439,16 +472,21 @@ so3_body2euler (const double pqr[3], const double rph[3],
 */
 static inline void
 so3_euler2body (const double rph_dot[3], const double rph[3],
-                double pqr[3], double J[18]) {
+                double pqr[3], double J[3*6]) {
 
     double rd = rph_dot[0];
     double pd = rph_dot[1];
     double hd = rph_dot[2];
 
+#ifdef _GNU_SOURCE
     double sr, cr;
-    fsincos (rph[0], &sr, &cr);
+    sincos (rph[0], &sr, &cr);
     double sp, cp;
-    fsincos (rph[1], &sp, &cp);
+    sincos (rph[1], &sp, &cp);
+#else
+    double sr = sin (rph[0]), cr = cos (rph[0]);
+    double sp = sin (rph[1]), cp = cos (rph[1]);
+#endif
 
     //body rates
     pqr[0] = -sp*hd + rd;

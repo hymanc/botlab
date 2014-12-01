@@ -1,11 +1,14 @@
-#include "url_parser.h"
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 
 #include "zarray.h"
+
+#include "url_parser.h"
 
 struct url_parser {
     // consider the URL:

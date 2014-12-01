@@ -10,7 +10,6 @@ LIBMATH_OBJS = \
 	dm.o \
 	dijkstra.o \
 	exact_minimum_degree.o \
-	fasttrig.o \
 	gps_linearize.o \
 	gsl_util_array.o \
 	gsl_util_blas.o \

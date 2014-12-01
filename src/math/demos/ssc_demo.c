@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -7,7 +6,6 @@
 #include "common/timestamp.h"
 
 #include "math/math_util.h"
-#include "math/fasttrig.h"
 #include "math/gsl_util_vector.h"
 #include "math/gsl_util_matrix.h"
 #include "math/ssc.h"
@@ -15,8 +13,6 @@
 int
 main (int argc, char *argv[])
 {
-    fasttrig_init ();
-
     GSLU_VECTOR_VIEW (x_ij, 6, {1, 2, 3, 4, 5, 6});
     gslu_vector_printfc (&x_ij.vector, "x_ij", NULL, CblasTrans);
 
@@ -48,8 +44,6 @@ main (int argc, char *argv[])
     ssc_head2tail (x_ik.data, Jplus.data, x_ij.data, x_jk.data);
     gslu_vector_printfc (&x_ik.vector, "x_ik", NULL, CblasTrans);
     gslu_matrix_printf (&Jplus.matrix, "Jplus");
-
-
 
     // ssc_tail2tail
     printf ("\nssc_tail2tail: x_ik = (-)x_ji (+) x_jk\n");

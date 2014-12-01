@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "math/fasttrig.h"
 #include "math/math_util.h"
 #include "math/gsl_util_array.h"
 #include "math/gsl_util_vector.h"
@@ -11,8 +10,6 @@
 int
 main (int argc, char *argv[])
 {
-    fasttrig_init ();
-
     // Rx using gsl_util matrix representation
     GSLU_MATRIX_VIEW (Rx, 3, 3);
     so3_rotx (Rx.data, 30*DTOR);

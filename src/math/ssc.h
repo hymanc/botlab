@@ -47,7 +47,7 @@ extern "C" {
 
 
 static inline void
-ssc_pose_set_Rt (double X[6], const double R[9], const double t[3])
+ssc_pose_from_Rt (double X[6], const double R[9], const double t[3])
 {
     X[SSC_DOF_X] = t[0];
     X[SSC_DOF_Y] = t[1];
@@ -61,7 +61,7 @@ ssc_pose_set_Rt (double X[6], const double R[9], const double t[3])
 }
 
 static inline void
-ssc_pose_set_Rt_gsl (gsl_vector *X, const gsl_matrix *R, const gsl_vector *t)
+ssc_pose_from_Rt_gsl (gsl_vector *X, const gsl_matrix *R, const gsl_vector *t)
 {
     assert (X->size==6);
     assert (R->size1==3  && R->size2==3 && R->tda==3);
@@ -79,24 +79,17 @@ ssc_pose_set_Rt_gsl (gsl_vector *X, const gsl_matrix *R, const gsl_vector *t)
 }
 
 static inline gsl_vector *
-ssc_pose_set_Rt_gsl_alloc (const gsl_matrix *R, const gsl_vector *t)
+ssc_pose_from_Rt_gsl_alloc (const gsl_matrix *R, const gsl_vector *t)
 {
     assert (R->size1==3  && R->size2==3 && t->size==3);
 
     gsl_vector *X = gsl_vector_alloc (6);
-    ssc_pose_set_Rt_gsl (X, R, t);
+    ssc_pose_from_Rt_gsl (X, R, t);
     return X;
 }
 
 void
 ssc_pose_printf (const double X[6], const char *name, bool degree, bool rowvec);
-
-/*
- * Jacobians in ssc_inverse, head2tail, and tail2tail are stored in row-major
- * order such that the (i,j) index is accessed as J(i*6+j) for ssc_inverse
- * and J(i*12+j) for ssc_head2tail and ssc_tail2tail.
- */
-
 
 /*
 % SSC_INVERSE  6-DOF coordinate frame relationship.
@@ -118,7 +111,6 @@ ssc_pose_printf (const double X[6], const char *name, bool degree, bool rowvec);
 */
 int
 ssc_inverse (double X_ji[6], double Jminus[6*6], const double X_ij[6]);
-
 int
 ssc_inverse_gsl (gsl_vector *X_ji, gsl_matrix *Jminus, const gsl_vector *X_ij);
 
@@ -144,7 +136,6 @@ ssc_inverse_gsl (gsl_vector *X_ji, gsl_matrix *Jminus, const gsl_vector *X_ij);
 */
 int
 ssc_head2tail (double X_ik[6], double Jplus[6*12], const double X_ij[6], const double X_jk[6]);
-
 int
 ssc_head2tail_gsl (gsl_vector *X_ik, gsl_matrix *Jplus, const gsl_vector *X_ij, const gsl_vector *X_jk);
 
@@ -170,7 +161,6 @@ ssc_head2tail_gsl (gsl_vector *X_ik, gsl_matrix *Jplus, const gsl_vector *X_ij, 
 */
 int
 ssc_tail2tail (double X_jk[6], double Jtail[6*12], const double X_ij[6], const double X_ik[6]);
-
 int
 ssc_tail2tail_gsl (gsl_vector *X_jk, gsl_matrix *Jtail, const gsl_vector *X_ij, const gsl_vector *X_ik);
 

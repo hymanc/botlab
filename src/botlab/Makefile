@@ -21,10 +21,13 @@ LIBDEPS = $(call libdeps, $(LDFLAGS))
 BIN_BOTLAB_ODOMETRY = $(BIN_PATH)/botlab_odometry
 BIN_BOTLAB_APP   = $(BIN_PATH)/botlab_app
 BIN_BOTLAB_CAMERA_LIDAR   = $(BIN_PATH)/botlab_camera_lidar
+BIN_BOTLAB_XYT_TEST = $(BIN_PATH)/xyt_test
 
-ALL = $(BIN_BOTLAB_ODOMETRY) $(BIN_BOTLAB_APP) $(BIN_BOTLAB_CAMERA_LIDAR)
+ALL = $(BIN_BOTLAB_ODOMETERY) $(BIN_BOTLAB_APP) $(BIN_BOTLAB_CAMERA_LIDAR) $(BIN_BOTLAB_XYT_TEST)
 
 all: $(ALL)
+
+xyt_test: $(BIN_BOTLAB_XYT_TEST)
 
 $(BIN_BOTLAB_ODOMETRY): odometry.o xyt.o $(LIBDEPS)
 	@echo "\t$@"
@@ -38,6 +41,10 @@ $(BIN_BOTLAB_CAMERA_LIDAR): camera_lidar.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
+$(BIN_BOTLAB_XYT_TEST): xyt_test.o xyt.o $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS)
+	
 clean:
 	@rm -f *.o *~ *.a
 	@rm -f $(ALL)

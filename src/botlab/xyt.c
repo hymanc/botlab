@@ -12,7 +12,15 @@
 int
 xyt_rbt (double T[3*3], const double X_ij[3])
 {
-    // IMPLEMENT ME
+    T[0] = cos(X_ij[2]);
+    T[1] = -sin(X_ij[2]);
+    T[2] = X_ij[0];
+    T[3] = sin(X_ij[2]);
+    T[4] = cos(X_ij[2]);
+    T[5] = X_ij[1];
+    T[6] = 0;
+    T[7] = 0;
+    T[8] = 1;
     return GSL_SUCCESS;
 }
 

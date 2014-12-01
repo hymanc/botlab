@@ -62,10 +62,39 @@ xyt_inverse_gsl (gsl_vector *X_ji, gsl_matrix *J_minus, const gsl_vector *X_ij)
 int
 xyt_head2tail (double X_ik[3], double J_plus[3*6], const double X_ij[3], const double X_jk[3])
 {
-    // IMPLEMENT ME
-
-    if (J_plus != NULL) {
-        // IMPLEMENT ME
+    double xij = X_ij[0];
+    double yij = X_ij[1];
+    double tij = X_ij[2];
+    double xjk = X_jk[0];
+    double yjk = X_jk[1];
+    double tjk = X_jk[2];
+    
+    X_ik[0] = xjk*cos(tij) - yij*sin(tij) + xij;
+    X_ik[1] = xji*sin(X_ij[2]) - yjk*cos(tij) + yij;
+    X_ik[2] = tij + tjk;
+    if (J_plus != NULL) 
+    {
+	// Row 1
+        J_plus[0] = 1;
+	J_plus[1] = 0;
+	J_plus[2] = -xjk*sin(tij) - yjk*cos(tij);
+	J_plus[3] = cos(tij);
+	J_plus[4] = -sin(tij);
+	J_plus[5] = 0;
+	// Row 2
+	J_plus[6] = 0;
+	J_plus[7] = 1;
+	J_plus[8] = xjk*cos(tij) - yjk*sin(tij);
+	J_plus[9] = sin(tij);
+	J_plus[10] = cos(tij);
+	J_plus[11] = 0;
+	// Row 3
+	J_plus[12] = 0;
+	J_plus[13] = 0;
+	J_plus[14] = 1;
+	J_plus[15] = 0;
+	J_plus[16] = 0;
+	J_plus[17] = 1;
     }
     return GSL_SUCCESS;
 }

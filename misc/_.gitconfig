@@ -1,0 +1,33 @@
+[alias]
+	co = checkout
+	ci = commit
+	st = status
+	br = branch
+        ls = log --graph --pretty=format:'%C(yellow)%h%C(reset) %C(blue)%ad%C(reset) | -%C(bold red)%d%C(reset) %s %C(ul cyan)%an%C(reset)' --date=short
+        lf = log --graph --pretty=format:'%C(yellow)%H%C(reset) %C(blue)%ad%C(reset) | -%C(bold red)%d%C(reset) %s %C(ul cyan)%an%C(reset)' --date=iso
+        lr = log --graph --pretty=format:'%C(yellow)%h%C(reset) %C(blue)%ad%C(reset) | -%C(bold red)%d%C(reset) %s %C(ul cyan)%an%C(reset)' --date=relative
+        type = cat-file -t
+        dump = cat-file -p
+        amend = commit --amend
+[giggle]
+	compact-mode = false
+	main-window-maximized = false
+	main-window-geometry = 1614x950+252+48
+	history-view-vpane-position = 675
+	file-view-vpane-position = 873
+	main-window-view = HistoryView
+[core]
+	excludesfile = /home/ryan/.gitignore
+	editor = emacs -nw
+	autocrlf = input
+	safecrlf = true
+[user]
+	name = Firstname Lastname
+	email = uniqname@umich.edu
+[color]
+	status = auto
+	diff = auto
+[push]
+	default = matching
+[diff]
+	renames = true

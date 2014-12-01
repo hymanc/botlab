@@ -1,0 +1,10 @@
+struct maebot_diff_drive_t
+{
+    int64_t utime;
+
+    // Between -1.0 and 1.0
+    float motor_left_speed;
+    float motor_right_speed;
+
+    // XXX: Add slew rate here?
+}

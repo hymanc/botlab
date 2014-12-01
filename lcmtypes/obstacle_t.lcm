@@ -1,0 +1,13 @@
+struct obstacle_t
+{
+    int64_t utime;
+
+    double  x;       // [m] world x position
+    double  y;       // [m] world y position
+    double  height;  // [m] object height
+    double  oradius; // [m] object outer radius
+    double  iradius; // [m] object inner radius
+    int32_t type;    //     object type
+
+    const int32_t TYPE_UNKNOWN=0, TYPE_CYLINDER=1, TYPE_ANNULUS=2, TYPE_CEILING=4;
+}

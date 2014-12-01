@@ -11,7 +11,7 @@
 
 # -Wno-format-zero-length: permit printf("");
 # -Wno-unused-parameter: permit a function to ignore an argument
-CFLAGS_STD   := -std=gnu99 -g -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_REENTRANT \
+CFLAGS_STD   := -std=gnu99 -g -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_REENTRANT -D_GNU_SOURCE \
 		-Wall -Wno-unused-parameter -Wno-format-zero-length -pthread -fPIC
 LDFLAGS_STD  := -lm -lpthread
 

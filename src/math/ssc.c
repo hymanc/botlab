@@ -6,7 +6,6 @@
 #include <gsl/gsl_errno.h>
 
 #include "math_util.h"
-#include "fasttrig.h"
 #include "gsl_util.h"
 #include "so3.h"
 #include "dm.h"
@@ -61,15 +60,19 @@ ssc_inverse (double X_ji[6], double J_minus[6*6], const double X_ij[6])
     so3_rotxyz (R_ij.data, SSC_RPH (X_ij));
 
     // X_ji
-    const double h_ji = fatan2 (R_ij(0,1), R_ij(0,0));
+    const double h_ji = atan2 (R_ij(0,1), R_ij(0,0));
+#ifdef _GNU_SOURCE
     double sh_ji, ch_ji;
-    fsincos (h_ji, &sh_ji, &ch_ji);
+    sincos (h_ji, &sh_ji, &ch_ji);
+#else
+    double sh_ji = sin (h_ji), ch_ji = cos(h_ji);
+#endif
 
     const double x_ji = -(R_ij(0,0)*X_ij(0) + R_ij(1,0)*X_ij(1) + R_ij(2,0)*X_ij(2));
     const double y_ji = -(R_ij(0,1)*X_ij(0) + R_ij(1,1)*X_ij(1) + R_ij(2,1)*X_ij(2));
     const double z_ji = -(R_ij(0,2)*X_ij(0) + R_ij(1,2)*X_ij(1) + R_ij(2,2)*X_ij(2));
-    const double r_ji = fatan2 (R_ij(2,0)*sh_ji - R_ij(2,1)*ch_ji, -R_ij(1,0)*sh_ji + R_ij(1,1)*ch_ji);
-    const double p_ji = fatan2 (-R_ij(0,2), R_ij(0,0)*ch_ji + R_ij(0,1)*sh_ji);
+    const double r_ji = atan2 (R_ij(2,0)*sh_ji - R_ij(2,1)*ch_ji, -R_ij(1,0)*sh_ji + R_ij(1,1)*ch_ji);
+    const double p_ji = atan2 (-R_ij(0,2), R_ij(0,0)*ch_ji + R_ij(0,1)*sh_ji);
 
     X_ji(SSC_DOF_X) = x_ji;
     X_ji(SSC_DOF_Y) = y_ji;
@@ -82,11 +85,16 @@ ssc_inverse (double X_ji[6], double J_minus[6*6], const double X_ij[6])
         const double x_ij=X_ij(SSC_DOF_X), y_ij=X_ij(SSC_DOF_Y), z_ij=X_ij(SSC_DOF_Z);
         const double r_ij=X_ij(SSC_DOF_R), p_ij=X_ij(SSC_DOF_P), h_ij=X_ij(SSC_DOF_H);
 
+#ifdef _GNU_SOURCE
         double sr_ij, cr_ij, sp_ij, cp_ij, sh_ij, ch_ij;
-        fsincos (r_ij, &sr_ij, &cr_ij);
-        fsincos (p_ij, &sp_ij, &cp_ij);
-        fsincos (h_ij, &sh_ij, &ch_ij);
-
+        sincos (r_ij, &sr_ij, &cr_ij);
+        sincos (p_ij, &sp_ij, &cp_ij);
+        sincos (h_ij, &sh_ij, &ch_ij);
+#else
+        double sr_ij = sin (r_ij), cr_ij = cos (r_ij);
+        double sp_ij = sin (p_ij), cp_ij = cos (p_ij);
+        double sh_ij = sin (h_ij), ch_ij = cos (h_ij);
+#endif
 
         // N
         double tmp = x_ij*ch_ij + y_ij*sh_ij;
@@ -157,11 +165,15 @@ ssc_head2tail (double X_ik[6], double J_plus[6*12], const double X_ij[6], const 
     const double x_ik = R_ij(0,0)*x_jk + R_ij(0,1)*y_jk + R_ij(0,2)*z_jk + x_ij;
     const double y_ik = R_ij(1,0)*x_jk + R_ij(1,1)*y_jk + R_ij(1,2)*z_jk + y_ij;
     const double z_ik = R_ij(2,0)*x_jk + R_ij(2,1)*y_jk + R_ij(2,2)*z_jk + z_ij;
-    const double h_ik = fatan2 (R_ik(1,0), R_ik(0,0));
+    const double h_ik = atan2 (R_ik(1,0), R_ik(0,0));
+#ifdef _GNU_SOURCE
     double sh_ik, ch_ik;
-    fsincos (h_ik, &sh_ik, &ch_ik);
-    const double r_ik = fatan2 (R_ik(0,2)*sh_ik - R_ik(1,2)*ch_ik, -R_ik(0,1)*sh_ik + R_ik(1,1)*ch_ik);
-    const double p_ik = fatan2 (-R_ik(2,0), R_ik(0,0)*ch_ik + R_ik(1,0)*sh_ik);
+    sincos (h_ik, &sh_ik, &ch_ik);
+#else
+    double sh_ik = sin (h_ik), ch_ik = cos (h_ik);
+#endif
+    const double r_ik = atan2 (R_ik(0,2)*sh_ik - R_ik(1,2)*ch_ik, -R_ik(0,1)*sh_ik + R_ik(1,1)*ch_ik);
+    const double p_ik = atan2 (-R_ik(2,0), R_ik(0,0)*ch_ik + R_ik(1,0)*sh_ik);
 
     X_ik(SSC_DOF_X) = x_ik;
     X_ik(SSC_DOF_Y) = y_ik;
@@ -171,26 +183,40 @@ ssc_head2tail (double X_ik[6], double J_plus[6*12], const double X_ij[6], const 
     X_ik(SSC_DOF_H) = h_ik;
 
     if (J_plus != NULL) {
+#ifdef _GNU_SOURCE
         double sr_ij, cr_ij;
-        fsincos (r_ij, &sr_ij, &cr_ij);
+        sincos (r_ij, &sr_ij, &cr_ij);
         double sp_ij, cp_ij;
-        fsincos (p_ij, &sp_ij, &cp_ij);
+        sincos (p_ij, &sp_ij, &cp_ij);
         double sh_ij, ch_ij;
-        fsincos (h_ij, &sh_ij, &ch_ij);
+        sincos (h_ij, &sh_ij, &ch_ij);
 
         double sp_jk, cp_jk;
-        fsincos (p_jk, &sp_jk, &cp_jk);
+        sincos (p_jk, &sp_jk, &cp_jk);
 
         double sr_ik, cr_ik;
-        fsincos (r_ik, &sr_ik, &cr_ik);
+        sincos (r_ik, &sr_ik, &cr_ik);
         double sp_ik, cp_ik;
-        fsincos (p_ik, &sp_ik, &cp_ik);
+        sincos (p_ik, &sp_ik, &cp_ik);
 
         double sh_dif, ch_dif;
-        fsincos (h_ik-h_ij, &sh_dif, &ch_dif);
+        sincos (h_ik-h_ij, &sh_dif, &ch_dif);
         double sr_dif, cr_dif;
-        fsincos (r_ik-r_jk, &sr_dif, &cr_dif);
-        const double tp_ik = ftan (p_ik);
+        sincos (r_ik-r_jk, &sr_dif, &cr_dif);
+#else
+        double sr_ij = sin (r_ij), cr_ij = cos (r_ij);
+        double sp_ij = sin (p_ij), cp_ij = cos (p_ij);
+        double sh_ij = sin (h_ij), ch_ij = cos (h_ij);
+
+        double sp_jk = sin (p_jk), cp_jk = cos (p_jk);
+
+        double sr_ik = sin (r_ik), cr_ik = cos (r_ik);
+        double sp_ik = sin (p_ik), cp_ik = cos (p_ik);
+
+        double sh_dif = sin (h_ik-h_ij), ch_dif = cos (h_ik-h_ij);
+        double sr_dif = sin (r_ik-r_jk), cr_dif = cos (r_ik-r_jk);
+#endif
+        const double tp_ik = tan (p_ik);
 
         const double x_dif = x_ik - x_ij, y_dif = y_ik - y_ij, z_dif = z_ik - z_ij;
 
@@ -307,7 +333,7 @@ ssc_homo4x4 (double H_ij[4*4], const double X_ij[6])
         R_ij(2,0), R_ij(2,1), R_ij(2,2), X_ij(2),
         0,         0,         0,         1
     };
-    memcpy (H_ij, H_ij_data, sizeof (H_ij_data));
+    memcpy (H_ij, H_ij_data, sizeof H_ij_data);
 
     return GSL_SUCCESS;
 }

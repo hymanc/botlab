@@ -5,7 +5,7 @@
  * @defgroup PerlsMathDM dm-trans
  * @brief Utility on direction-magnitude (dm)
  * @ingroup PerlsMath
- * 
+ *
  * @{
  */
 
@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-/** 
+/**
  * translation vector to direction-magnitude.
  * function from matlab van code (TRANS2DM)
  *
@@ -37,12 +37,6 @@ dm_trans2dm (const double t[3], double b[3], double J[9]);
  */
 void
 dm_trans2dm_gsl (const gsl_vector *t, gsl_vector *b, gsl_matrix *J);
-
-/**
- * dm_trans2dm using math.h instead of fasttrig, when very accurate computations are critical.
- */
-void
-dm_trans2dm_cmath (const double t[3], double b[3], double J[9]);
 
 /**
  * translation vector to direction-magnitude.
@@ -66,11 +60,6 @@ dm_dm2trans (const double b[3], double t[3], double J[9]);
 void
 dm_dm2trans_gsl (const gsl_vector * b, gsl_vector *t, gsl_matrix *J);
 
-/**
- * dm_dm2trans using math.h instead of fasttrig, when very accurate computations are critical.
- */
-void
-dm_dm2trans_cmath (const double b[3], double t[3], double J[9]);
 
 /**
  * Converts 6 dof to 5 dof.
@@ -85,7 +74,7 @@ dm_dm2trans_cmath (const double b[3], double t[3], double J[9]);
  * @param J jacobian used in the calculation. No jacobian returned if NULL provided.
  */
 void
-dm_trans2dm_pose_cov (const gsl_vector *x, const gsl_matrix *cov, 
+dm_trans2dm_pose_cov (const gsl_vector *x, const gsl_matrix *cov,
                       gsl_vector *dmx, gsl_matrix *dmcov, gsl_matrix *J);
 
 #ifdef __cplusplus

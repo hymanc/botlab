@@ -86,7 +86,7 @@ xyt_head2tail (double X_ik[3], double J_plus[3*6], const double X_ij[3], const d
     double tjk = X_jk[2];
     
     X_ik[0] = xjk*cos(tij) - yij*sin(tij) + xij;
-    X_ik[1] = xji*sin(X_ij[2]) - yjk*cos(tij) + yij;
+    X_ik[1] = xij*sin(X_ij[2]) - yjk*cos(tij) + yij;
     X_ik[2] = tij + tjk;
     if (J_plus != NULL) 
     {
@@ -141,12 +141,12 @@ xyt_tail2tail (double X_jk[3], double J_tail[3*6], const double X_ij[3], const d
     if (J_tail == NULL) 
     {
         xyt_inverse (X_ji, NULL, X_ij);
-	xyt_head2tail(X_jk, NULL, Xji, X_ik);
+	xyt_head2tail(X_jk, NULL, X_ji, X_ik);
     }
     else 
     {
 	xyt_inverse (X_ji, NULL, X_ij);
-	xyt_head2tail(X_jk, J_tail, X_ik);
+	xyt_head2tail(X_jk, J_tail, X_ji, X_ik);
     }
     return GSL_SUCCESS;
 }

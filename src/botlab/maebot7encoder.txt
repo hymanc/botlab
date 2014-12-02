@@ -1,0 +1,55 @@
+Trial 1:
+
+left start: 1189
+left end: 10241
+left diff: 9052
+
+right start: 1155
+right end: 10235
+right diff: 9080
+
+Trial 2:
+
+left start: 10368 
+left end: 19461
+left diff: 9093
+
+right start: 10349
+right end: 19401
+right diff: 9052
+
+Trial 3:
+
+left start: 19679
+left end: 28725
+left diff: 9046
+
+right start: 19608
+right end: 28695
+right diff: 9087
+
+Trial 4:
+
+left start: 28993
+left end: 38050
+left diff: 9057
+
+right start: 28947
+right end: 38035
+right diff: 9088
+
+Trial 5:
+
+left start: 38220
+left end: 47255
+left diff: 9035
+
+right start: 38203
+right end: 47308
+right diff: 9105
+
+Average:
+right: (9052 + 9093 + 9046 + 9057 + 9035) / 5 = 9056.6
+left: ( 9080 + 9052  + 9087 + 9088 + 9105) / 5 = 9082.4
+
+distance: 2m

@@ -9,9 +9,7 @@
 
 #include "xyt.h"
 
-int
-xyt_rbt (double T[3*3], const double X_ij[3])
-{
+int xyt_rbt (double T[3*3], const double X_ij[3]) {   // this is a 3x3 matrix
     T[0] = cos(X_ij[2]);
     T[1] = -sin(X_ij[2]);
     T[2] = X_ij[0];
@@ -24,9 +22,7 @@ xyt_rbt (double T[3*3], const double X_ij[3])
     return GSL_SUCCESS;
 }
 
-int
-xyt_rbt_gsl (gsl_matrix *T, const gsl_vector *X_ij)
-{
+int xyt_rbt_gsl (gsl_matrix *T, const gsl_vector *X_ij) {
     assert (T->size1 == 3 && T->size2 == 3);
     assert (X_ij->size == 3 && X_ij->stride == 1);
 
@@ -34,9 +30,7 @@ xyt_rbt_gsl (gsl_matrix *T, const gsl_vector *X_ij)
 }
 
 
-int
-xyt_inverse (double X_ji[3], double J_minus[3*3], const double X_ij[3])
-{
+int xyt_inverse (double X_ji[3], double J_minus[3*3], const double X_ij[3]) {
     double xij = X_ij[0];
     double yij = X_ij[1];
     double tij = X_ij[2];

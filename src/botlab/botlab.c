@@ -66,8 +66,12 @@ struct state
     int fidx;
     lcm_t *lcm;
 
-    pose_xyt_t *pose;
+	// pose
+	pose_xyt_t *pose;
 	zarray_t* past_poses;
+
+	// lidar
+	rplidar_laser_t *lidar;
 
     pthread_t command_thread;
     maebot_diff_drive_t cmd;
@@ -77,11 +81,13 @@ struct state
     bool   have_goal;
     double goal[3];
 
+	// vx
     vx_world_t *vw;
     vx_application_t app;
     vx_event_handler_t veh;
     zhash_t *layer_map; // <display, layer>
 
+	// mutex
     pthread_mutex_t mutex;
 };
 
@@ -448,6 +454,26 @@ static void * render_thread (void *data)
             // Current Lidar Scan
             // HINT: vxo_points is what you want
         }
+
+		// Lidar
+		{
+			double xy[2] = {0.0,0.0};
+			double diff = DBL_MAX;
+			// find the pose closest to the lidar acquisition
+			int i;
+			for (i=0; i < zarray_size(state->past_poses); i++)
+			{
+				//start from end and compare difference in times
+			}
+			vx_buffer_t *vb = vx_world_get_buffer (state->vw, "lidar");
+			vx_buffer_set_draw_order (vb, 1);
+			vx_buffer_add_back (vb,
+							vxo_chain (	vxo_mat_scale2(0.1,0.1),
+										vxo_mat_translate2 (xy[0], xy[1]),
+									   	vxo_circle (vxo_mesh_style (vx_magenta))));
+			vx_buffer_swap (vb);
+		}
+
         pthread_mutex_unlock (&state->mutex);
         usleep (1000000/fps);
     }
@@ -511,7 +537,7 @@ static void rplidar_laser_handler (const lcm_recv_buf_t *rbuf, const char *chann
 
     pthread_mutex_lock (&state->mutex);
     {
-        // TODO: IMPLEMENT ME
+		*(state->lidar) = *msg; // update current lidar reading
     }
     pthread_mutex_unlock (&state->mutex);
 }
@@ -528,10 +554,15 @@ state_t *state_create (void)
     state->gopt = getopt_create ();
     state->lcm = lcm_create (NULL);
 
+	// goal
     state->have_goal = false;
 
+	// pose
 	state->pose = calloc(1, sizeof(pose_xyt_t));
 	state->past_poses = zarray_create(sizeof(pose_xyt_t));
+
+	// lidar
+	state->lidar = calloc(1, sizeof(rplidar_laser_t));
 
     state->vw = vx_world_create ();
     state->app.display_finished = display_finished;
@@ -562,6 +593,8 @@ state_t *state_create (void)
 void state_destroy(state_t *state)
 {
 	zarray_destroy(state->past_poses);
+	free(state->pose);
+	free(state->lidar);
 	//TODO: Everything else...
 }
 

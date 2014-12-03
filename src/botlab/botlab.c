@@ -424,6 +424,7 @@ static void * render_thread (void *data)
                                            	vxo_mat_translate3 (0.0, 0.0, 0.5),
                                            	vxo_cylinder (vxo_mesh_style (vx_blue))));*/
 					vx_buffer_swap(vb);
+		printf("x: %lf, y: %lf, t: %lf\n", state->pose->xyt[0], state->pose->xyt[1], state->pose->xyt[2]);
 		}
                 //else
                     //vx_buffer_add_back(vb, robot);
@@ -488,12 +489,13 @@ static void maebot_sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *
  * @brief X-Y-Theta Odometry/Pose Handler
  */
 static void pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel, const pose_xyt_t *msg, void *user)
+
 {
     state_t *state = user;
 
     pthread_mutex_lock (&state->mutex);
     {
-	state->pose = msg; // Update current pose
+	*(state->pose) = *msg; // Update current pose
 	zarray_add(state->past_poses, state->pose);
 	printf("X:%.3f, Y:%.3f, T:%.3f\n",msg->xyt[0], msg->xyt[1], msg->xyt[2]);
     }
@@ -528,6 +530,7 @@ state_t *state_create (void)
 
     state->have_goal = false;
 
+	state->pose = calloc(1, sizeof(pose_xyt_t));
 	state->past_poses = zarray_create(sizeof(pose_xyt_t));
 
     state->vw = vx_world_create ();

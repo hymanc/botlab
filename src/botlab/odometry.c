@@ -60,38 +60,59 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *chan
     double dl = l_diff * state->meters_per_tick;
     double dr = r_diff * state->meters_per_tick;
     double ds = 0;
-    // TODO: Add Randomness
-    
-    // TODO: Update pose estimate in state
-    
-    // Current position
+
+    // Current pose
     gsl_vector *p = gsl_vector_alloc(3);
     memcpy(p->data, state->xyt, 3*sizeof(double));
     
     // Compute new delta
     gsl_vector *delta = gsl_vector_alloc(3);
-    gsl_vector_set(delta, 0, (dl+dr)/2);
+    gsl_vector_set(delta, 0, (dl + dr)/2);
     gsl_vector_set(delta, 1, ds);
-    gsl_vector_set(delta, 2, (dr-dl)/2);
+    gsl_vector_set(delta, 2, (dr - dl)/2);
     
-    // Next position (pp = p (+) delta)
+    // Next pose (pp = p (+) delta)
     gsl_vector *pp = gsl_vector_alloc(3);
     gsl_matrix *jplus = gsl_matrix_alloc(3,6);
     xyt_head2tail_gsl(pp, jplus, p, delta); // Compose delta onto p to get new estimate
    
-    // Compute head
+    // Copy next pose into state
     memcpy(state->xyt, pp->data, 3*sizeof(double));
     
-    // TODO:  Update state covariance matrix 
-    gsl_matrix *sigma = gsl_matrix_alloc(3,3);
+    // Update state covariance matrix 
+    gsl_matrix *sig_p = gsl_matrix_alloc(3,3);
+    gsl_matrix *sig_a = gsl_matrix_calloc(6,6);
+    
+    // Generate Sigma_delta matrix
+    gsl_matrix *sig_delta = gsl_matrix_alloc(3,3);
+    gsl_matrix_set(sig_delta, 0, 0, state->alpha * fabs(dl));
+    gsl_matrix_set(sig_delta, 1, 1, state->alpha * fabs(dr));
+    gsl_matrix_set(sig_delta, 2, 2, state->beta * fabs(dr + dl));
+    
+    gslu_matrix_set_submatrix(sig_a, 0, 0, sig_p);
+    gslu_matrix_set_submatrix(sig_a, 3, 3, sig_delta);
     //J(+) * [SigP 0; 0 SigDelta] J(+)^T
-    // memcpy(state->sigma, );
+    
+    gsl_matrix * sig_temp = gslu_blas_mmT_alloc(sig_a,jplus);
+    gsl_matrix * sig_pp = gslu_blas_mm_alloc(jplus, sig_temp);
+    
+    memcpy(state->sigma, sig_pp->data, sizeof(state->Sigma));
    
     // publish pose to LCM
     pose_xyt_t odo = { .utime = msg->utime };
     memcpy (odo.xyt, state->xyt, sizeof state->xyt);
     memcpy (odo.Sigma, state->Sigma, sizeof state->Sigma);
     pose_xyt_t_publish (state->lcm, state->odometry_channel, &odo);
+    
+    gslu_matrix_free(sig_p);
+    gslu_matrix_free(sig_a);
+    gslu_matrix_free(sig_delta);
+    gslu_matrix_free(sig_temp);
+    gslu_matrix_free(sig_pp);
+    gslu_matrix_free(jplus);
+    gslu_vector_free(p);
+    gslu_vector_free(delta);
+    gslu_vector_free(pp);
 }
 
 static void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)

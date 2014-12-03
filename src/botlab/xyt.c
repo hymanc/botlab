@@ -55,8 +55,7 @@ int xyt_inverse (double X_ji[3], double J_minus[3*3], const double X_ij[3]) {
     return GSL_SUCCESS;
 }
 
-int
-xyt_inverse_gsl (gsl_vector *X_ji, gsl_matrix *J_minus, const gsl_vector *X_ij)
+int xyt_inverse_gsl (gsl_vector *X_ji, gsl_matrix *J_minus, const gsl_vector *X_ij)
 {
     assert (X_ji->size == 3 && X_ji->stride == 1);
     assert (X_ij->size == 3 && X_ij->stride == 1);
@@ -69,8 +68,7 @@ xyt_inverse_gsl (gsl_vector *X_ji, gsl_matrix *J_minus, const gsl_vector *X_ij)
         return xyt_inverse (X_ji->data, NULL, X_ij->data);
 }
 
-int
-xyt_head2tail (double X_ik[3], double J_plus[3*6], const double X_ij[3], const double X_jk[3])
+int xyt_head2tail (double X_ik[3], double J_plus[3*6], const double X_ij[3], const double X_jk[3])
 {
     double xij = X_ij[0];
     double yij = X_ij[1];
@@ -110,8 +108,7 @@ xyt_head2tail (double X_ik[3], double J_plus[3*6], const double X_ij[3], const d
     return GSL_SUCCESS;
 }
 
-int
-xyt_head2tail_gsl (gsl_vector *X_ik, gsl_matrix *J_plus, const gsl_vector *X_ij, const gsl_vector *X_jk)
+int xyt_head2tail_gsl (gsl_vector *X_ik, gsl_matrix *J_plus, const gsl_vector *X_ij, const gsl_vector *X_jk)
 {
     assert (X_ik->size == 3 && X_ik->stride == 1);
     assert (X_ij->size == 3 && X_ij->stride == 1);
@@ -129,8 +126,7 @@ xyt_head2tail_gsl (gsl_vector *X_ik, gsl_matrix *J_plus, const gsl_vector *X_ij,
 /**
  * @brief (-)xij(+)xik
  */
-int
-xyt_tail2tail (double X_jk[3], double J_tail[3*6], const double X_ij[3], const double X_ik[3])
+int xyt_tail2tail (double X_jk[3], double J_tail[3*6], const double X_ij[3], const double X_ik[3])
 {
     double X_ji[3];
     if (J_tail == NULL) 
@@ -146,8 +142,7 @@ xyt_tail2tail (double X_jk[3], double J_tail[3*6], const double X_ij[3], const d
     return GSL_SUCCESS;
 }
 
-int
-xyt_tail2tail_gsl (gsl_vector *X_jk, gsl_matrix *J_tail, const gsl_vector *X_ij, const gsl_vector *X_ik)
+int xyt_tail2tail_gsl (gsl_vector *X_jk, gsl_matrix *J_tail, const gsl_vector *X_ij, const gsl_vector *X_ik)
 {
     assert (X_jk->size == 3 && X_jk->stride == 1);
     assert (X_ij->size == 3 && X_ij->stride == 1);

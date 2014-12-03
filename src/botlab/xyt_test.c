@@ -16,6 +16,7 @@ int main(int argc, char **argv)
 
     gslu_matrix_printf(rbt, "RBT");
     
+
     /*
     xyt_inverse (double X_ji[3], double J_minus[3*3], const double X_ij[3]);
 

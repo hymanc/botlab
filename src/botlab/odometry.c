@@ -20,7 +20,8 @@
 #define GYRO_RMS_STRING       "1.0"    // [deg/s]
 
 typedef struct state state_t;
-struct state {
+struct state 
+{
     getopt_t *gopt;
 
     lcm_t *lcm;
@@ -34,6 +35,9 @@ struct state {
     double beta;
     double gyro_rms;
 
+    int previous_left_encoder;
+    int previous_right_encoder;
+    
     bool use_gyro;
     int64_t dtheta_utime;
     double dtheta;
@@ -43,42 +47,71 @@ struct state {
     double Sigma[3*3];
 };
 
-static void
-motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-                        const maebot_motor_feedback_t *msg, void *user)
+static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_motor_feedback_t *msg, void *user)
 {
     state_t *state = user;
-
-    // IMPLEMENT ME
-
-    // publish
+    
+    // TODO: IMPLEMENT ME
+    
+    // Compute encoder differences (current "velocity")
+    int l_diff = msg->encoder_left_ticks - state->previous_left_encoder;
+    int r_diff = msg->encoder_right_ticks - state->previous_right_encoder;
+    // Handle encoder wrap-around, probably not necessary?
+    double dl = l_diff * state->meters_per_tick;
+    double dr = r_diff * state->meters_per_tick;
+    double ds = 0;
+    // TODO: Add Randomness
+    
+    // TODO: Update pose estimate in state
+    
+    // Current position
+    gsl_vector *p = gsl_vector_alloc(3);
+    memcpy(p->data, state->xyt, 3*sizeof(double));
+    
+    // Compute new delta
+    gsl_vector *delta = gsl_vector_alloc(3);
+    gsl_vector_set(delta, 0, (dl+dr)/2);
+    gsl_vector_set(delta, 1, ds);
+    gsl_vector_set(delta, 2, (dr-dl)/2);
+    
+    // Next position (pp = p (+) delta)
+    gsl_vector *pp = gsl_vector_alloc(3);
+    gsl_matrix *jplus = gsl_matrix_alloc(3,6);
+    xyt_head2tail_gsl(pp, jplus, p, delta); // Compose delta onto p to get new estimate
+   
+    // Compute head
+    memcpy(state->xyt, pp->data, 3*sizeof(double));
+    
+    // TODO:  Update state covariance matrix 
+    gsl_matrix *sigma = gsl_matrix_alloc(3,3);
+    //J(+) * [SigP 0; 0 SigDelta] J(+)^T
+    // memcpy(state->sigma, );
+   
+    // publish pose to LCM
     pose_xyt_t odo = { .utime = msg->utime };
     memcpy (odo.xyt, state->xyt, sizeof state->xyt);
     memcpy (odo.Sigma, state->Sigma, sizeof state->Sigma);
     pose_xyt_t_publish (state->lcm, state->odometry_channel, &odo);
 }
 
-static void
-sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-                     const maebot_sensor_data_t *msg, void *user)
+static void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
 {
     state_t *state = user;
 
     if (!state->use_gyro)
         return;
 
-    // IMPLEMENT ME
+    // TODO: IMPLEMENT ME
 }
 
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
     // so that redirected stdout won't be insanely buffered.
     setvbuf (stdout, (char *) NULL, _IONBF, 0);
 
     state_t *state = calloc (1, sizeof *state);
 
-    state->meters_per_tick = 1.0; // IMPLEMENT ME
+    state->meters_per_tick = 2.0943951E-4;
 
     state->gopt = getopt_create ();
     getopt_add_bool   (state->gopt, 'h', "help", 0, "Show help");
@@ -114,5 +147,7 @@ main (int argc, char *argv[])
     printf ("ticks per meter: %f\n", 1.0/state->meters_per_tick);
 
     while (1)
+    {
         lcm_handle (state->lcm);
+    }
 }

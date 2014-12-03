@@ -24,4 +24,3 @@ Follow the instructions in the `INSTALL` file provided in the root directory of 
     + Lab Tech: Dr. Peter Gaskell <pgaskell@umich.edu>
     + GSI: Mr. John Wang <jnwang@umich.edu>
 
-TEST EDIT

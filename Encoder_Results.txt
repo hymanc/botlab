@@ -1,5 +1,0 @@
-Results for Q1.2
-
-#ticks/m:
-Left:
-Right

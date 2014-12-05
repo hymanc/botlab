@@ -6,6 +6,7 @@
 
 #include "common/getopt.h"
 #include "math/gsl_util_matrix.h"
+//#include "math/gsl_util_vector.h"
 #include "math/gsl_util_blas.h"
 #include "math/math_util.h"
 
@@ -42,6 +43,7 @@ struct state
     int64_t dtheta_utime;
     double dtheta;
     double dtheta_sigma;
+    double gyro_z_offset;
 
     double xyt[3]; // 3-dof pose
     double Sigma[3*3];
@@ -50,8 +52,6 @@ struct state
 static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_motor_feedback_t *msg, void *user)
 {
     state_t *state = user;
-    
-    // TODO: IMPLEMENT ME
     
     // Compute encoder differences (current "velocity")
     int l_diff = msg->encoder_left_ticks - state->previous_left_encoder;
@@ -96,7 +96,7 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *chan
     gsl_matrix * sig_temp = gslu_blas_mmT_alloc(sig_a,jplus);
     gsl_matrix * sig_pp = gslu_blas_mm_alloc(jplus, sig_temp);
     
-    memcpy(state->sigma, sig_pp->data, sizeof(state->Sigma));
+    memcpy(state->Sigma, sig_pp->data, sizeof(state->Sigma));
    
     // publish pose to LCM
     pose_xyt_t odo = { .utime = msg->utime };
@@ -104,15 +104,15 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *chan
     memcpy (odo.Sigma, state->Sigma, sizeof state->Sigma);
     pose_xyt_t_publish (state->lcm, state->odometry_channel, &odo);
     
-    gslu_matrix_free(sig_p);
-    gslu_matrix_free(sig_a);
-    gslu_matrix_free(sig_delta);
-    gslu_matrix_free(sig_temp);
-    gslu_matrix_free(sig_pp);
-    gslu_matrix_free(jplus);
-    gslu_vector_free(p);
-    gslu_vector_free(delta);
-    gslu_vector_free(pp);
+    gsl_matrix_free(sig_p);
+    gsl_matrix_free(sig_a);
+    gsl_matrix_free(sig_delta);
+    gsl_matrix_free(sig_temp);
+    gsl_matrix_free(sig_pp);
+    gsl_matrix_free(jplus);
+    gsl_vector_free(p);
+    gsl_vector_free(delta);
+    gsl_vector_free(pp);
 }
 
 static void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
@@ -121,8 +121,12 @@ static void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel
 
     if (!state->use_gyro)
         return;
-
+    
+    state->dtheta_utime = msg->utime;
+    state->dtheta = state->gyro_rms * msg->gyro[2];
+    //state->dtheta_sigma = 
     // TODO: IMPLEMENT ME
+    // state->dtheta_sigma = 
 }
 
 int main (int argc, char *argv[])
@@ -132,8 +136,10 @@ int main (int argc, char *argv[])
 
     state_t *state = calloc (1, sizeof *state);
 
-    state->meters_per_tick = 2.0943951E-4;
-
+    state->meters_per_tick = 2.0943951E-4; // Meters per encoder tick
+    
+    state->gyro_z_offset = 0; // TODO: Gyro offset (Make it a gopt string?)
+    
     state->gopt = getopt_create ();
     getopt_add_bool   (state->gopt, 'h', "help", 0, "Show help");
     getopt_add_bool   (state->gopt, 'g', "use-gyro", 0, "Use gyro for heading instead of wheel encoders");
@@ -160,10 +166,8 @@ int main (int argc, char *argv[])
 
     // initialize LCM
     state->lcm = lcm_create (NULL);
-    maebot_motor_feedback_t_subscribe (state->lcm, state->feedback_channel,
-                                       motor_feedback_handler, state);
-    maebot_sensor_data_t_subscribe (state->lcm, state->sensor_channel,
-                                    sensor_data_handler, state);
+    maebot_motor_feedback_t_subscribe (state->lcm, state->feedback_channel, motor_feedback_handler, state);
+    maebot_sensor_data_t_subscribe (state->lcm, state->sensor_channel, sensor_data_handler, state);
 
     printf ("ticks per meter: %f\n", 1.0/state->meters_per_tick);
 

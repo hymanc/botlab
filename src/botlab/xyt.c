@@ -3,9 +3,11 @@
 #include <string.h>
 #include <math.h>
 
-#include "math/gsl_util_vector.h"
+//#include "math/gsl_util_vector.h"
 #include "math/gsl_util_matrix.h"
 #include "math/gsl_util_blas.h"
+
+//#include "math/gsl_util.h"
 
 #include "xyt.h"
 

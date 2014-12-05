@@ -57,7 +57,8 @@
 
 typedef struct state state_t;
 
-struct state {
+struct state 
+{
     bool running;
     getopt_t *gopt;
     char *url;
@@ -84,8 +85,7 @@ struct state {
 };
 
 
-static void
-display_finished (vx_application_t *app, vx_display_t *disp)
+static void display_finished (vx_application_t *app, vx_display_t *disp)
 {
     state_t *state = app->impl;
 
@@ -98,8 +98,7 @@ display_finished (vx_application_t *app, vx_display_t *disp)
     pthread_mutex_unlock (&state->mutex);
 }
 
-static void
-display_started (vx_application_t *app, vx_display_t *disp)
+static void display_started (vx_application_t *app, vx_display_t *disp)
 {
     state_t *state = app->impl;
 
@@ -120,14 +119,12 @@ display_started (vx_application_t *app, vx_display_t *disp)
     pthread_mutex_unlock (&state->mutex);
 }
 
-static int
-touch_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_touch_event_t *mouse)
+static int touch_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_touch_event_t *mouse)
 {
     return 0;
 }
 
-static int
-mouse_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_mouse_event_t *mouse)
+static int mouse_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_mouse_event_t *mouse)
 {
     state_t *state = vh->impl;
 
@@ -160,8 +157,7 @@ mouse_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_mo
     return 0;
 }
 
-static int
-key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
+static int key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
 {
     state_t *state = vh->impl;
 
@@ -244,8 +240,7 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
     return 0;
 }
 
-static void
-destroy (vx_event_handler_t *vh)
+static void destroy (vx_event_handler_t *vh)
 {
     // do nothing, since this event handler is statically allocated.
 }
@@ -265,8 +260,7 @@ static void handler (int signum)
 
 
 // This thread continuously publishes command messages to the maebot
-static void *
-command_thread (void *data)
+static void * command_thread (void *data)
 {
     state_t *state = data;
     const uint32_t Hz = 20;
@@ -292,8 +286,7 @@ command_thread (void *data)
 }
 
 // This thread continously renders updates from the robot
-static void *
-render_thread (void *data)
+static void * render_thread (void *data)
 {
     state_t *state = data;
 
@@ -386,9 +379,7 @@ render_thread (void *data)
 }
 
 // === LCM Handlers =================
-static void
-maebot_motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-                               const maebot_motor_feedback_t *msg, void *user)
+static void maebot_motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_motor_feedback_t *msg, void *user)
 {
     state_t *state = user;
 
@@ -399,9 +390,7 @@ maebot_motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     pthread_mutex_unlock (&state->mutex);
 }
 
-static void
-maebot_sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-                            const maebot_sensor_data_t *msg, void *user)
+static void maebot_sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
 {
     state_t *state = user;
 
@@ -412,9 +401,7 @@ maebot_sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     pthread_mutex_unlock (&state->mutex);
 }
 
-static void
-pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-                  const pose_xyt_t *msg, void *user)
+static void pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel, const pose_xyt_t *msg, void *user)
 {
     state_t *state = user;
 
@@ -425,9 +412,7 @@ pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     pthread_mutex_unlock (&state->mutex);
 }
 
-static void
-rplidar_laser_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-                       const rplidar_laser_t *msg, void *user)
+static void rplidar_laser_handler (const lcm_recv_buf_t *rbuf, const char *channel, const rplidar_laser_t *msg, void *user)
 {
     state_t *state = user;
 
@@ -438,8 +423,7 @@ rplidar_laser_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     pthread_mutex_unlock (&state->mutex);
 }
 
-state_t *
-state_create (void)
+state_t *state_create (void)
 {
     state_t *state = calloc (1, sizeof (*state));
 
@@ -471,8 +455,7 @@ state_create (void)
     return state;
 }
 
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
     // so that redirected stdout won't be insanely buffered.
     setvbuf (stdout, (char *) NULL, _IONBF, 0);

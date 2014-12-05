@@ -278,10 +278,10 @@ command_thread (void *data)
             if (!state->manual_control && state->have_goal) {
                 // IMPLEMENT ME
 
-                // Publish
-                state->cmd.utime = utime_now ();
-                maebot_diff_drive_t_publish (state->lcm, channel, &(state->cmd));
             }
+            // Publish
+            state->cmd.utime = utime_now ();
+            maebot_diff_drive_t_publish (state->lcm, channel, &(state->cmd));
         }
         pthread_mutex_unlock (&state->mutex);
 

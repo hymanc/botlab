@@ -5,6 +5,7 @@ LDFLAGS = $(LDFLAGS_STD) $(LDFLAGS_COMMON) $(LDFLAGS_LCMTYPES)
 LIBDEPS = $(call libdeps, $(LDFLAGS))
 
 BIN_MAEBOT_DRIVER = $(BIN_PATH)/maebot_driver
+BIN_MY_MAEBOT_DRIVER = $(BIN_PATH)/my_maebot_driver
 BIN_LED_TEST = $(BIN_PATH)/maebot_led_test
 BIN_LASER_TEST = $(BIN_PATH)/maebot_laser_test
 BIN_MOTOR_FEEDBACK_TEST = $(BIN_PATH)/maebot_motor_feedback_test
@@ -13,9 +14,13 @@ BIN_SENSOR_DATA_TEST = $(BIN_PATH)/maebot_sensor_data_test
 BIN_RPLIDAR_DRIVER = $(BIN_PATH)/rplidar_driver
 
 ALL = $(BIN_MAEBOT_DRIVER) $(BIN_LED_TEST) $(BIN_LASER_TEST) $(BIN_MOTOR_FEEDBACK_TEST) \
-      $(BIN_DIFF_DRIVE_TEST) $(BIN_SENSOR_DATA_TEST) $(BIN_RPLIDAR_DRIVER)
+      $(BIN_DIFF_DRIVE_TEST) $(BIN_SENSOR_DATA_TEST) $(BIN_RPLIDAR_DRIVER) $(BIN_MY_MAEBOT_DRIVER)
 
 all: $(ALL)
+
+$(BIN_MY_MAEBOT_DRIVER): my_maebot_driver.o types.o $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS)
 
 $(BIN_MAEBOT_DRIVER): maebot_driver.o types.o $(LIBDEPS)
 	@echo "\t$@"

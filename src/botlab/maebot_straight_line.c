@@ -103,12 +103,11 @@ int main (int argc, char *argv[]) {
 
     usleep (3000000);
 
-    pthread_mutex_lock (&msg_mutex);
-    msg.motor_left_speed  = 0.01;
-    msg.motor_right_speed = 0.01;
-    pthread_mutex_unlock (&msg_mutex);
-
-    usleep (1000000);
+    //pthread_mutex_lock (&msg_mutex);
+    //msg.motor_left_speed  = 0.01;
+    //msg.motor_right_speed = 0.01;
+    //pthread_mutex_unlock (&msg_mutex);
+    //usleep (1000000);
 
     pthread_mutex_lock (&msg_mutex);
     msg.motor_left_speed = MTR_STOP;

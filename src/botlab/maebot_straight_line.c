@@ -1,226 +1,121 @@
+#include <lcm/lcm.h>
+#include <pthread.h>
+#include <unistd.h>
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <inttypes.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <signal.h>
-#include <math.h>
-#include <lcm/lcm.h>
 
-#include "vx/vx.h"
-#include "vx/vxo_drawables.h"
-#include "vx/vx_remote_display_source.h"
-
-#include "common/getopt.h"
 #include "common/timestamp.h"
-#include "math/matd.h"
-#include "math/math_util.h"
-#include "imagesource/image_util.h"
-#include "imagesource/image_source.h"
-#include "imagesource/image_convert.h"
-
 #include "lcmtypes/maebot_diff_drive_t.h"
-#include "lcmtypes/maebot_laser_t.h"
-#include "lcmtypes/maebot_leds_t.h"
-#include "lcmtypes/maebot_sensor_data_t.h"
 #include "lcmtypes/maebot_motor_feedback_t.h"
 
-#define dmax(A,B) A < B ? B : A
-#define dmin(A,B) A < B ? A : B
+#define CMD_PRD 50000 //us  -> 20Hz
+#define MTR_SPD 0.25f
+#define MTR_STOP 0.0f
 
-#define FORWARD_SPEED_RIGHT 0.25f
-#define FORWARD_SPEED_LEFT  0.25f
-#define TIMETOMOVE 1.0
+maebot_diff_drive_t msg;
+pthread_mutex_t msg_mutex;
 
-#define MAX_REVERSE_SPEED -0.35f
-#define MAX_FORWARD_SPEED  0.45f
-
-typedef struct state state_t;
-struct state {
-    vx_application_t app;
-    vx_event_handler_t veh;
-
-    double joy_bounds;
-    double last_click[3];
-
-    maebot_diff_drive_t cmd;
-    pthread_t cmd_thread;
-    pthread_mutex_t cmd_mutex;
-
-    pthread_mutex_t render_mutex;
-    pthread_t render_thread;
-
-    int running;
-
-    getopt_t *gopt;
-    char *url;
-    image_source_t *isrc;
-    int fidx;
-
-    lcm_t *lcm;
-    pthread_mutex_t lcm_mutex;
-
-    pthread_mutex_t layer_mutex;
-
-    vx_world_t *vw;
-    zhash_t *layer_map; // <display, layer>
-};
-
-static void destroy (vx_event_handler_t *vh) {
-    // do nothing, since this event handler is statically allocated.
+void * lcm_handler (void *lcm) {
+    for(;;) lcm_handle(lcm);
 }
+void * diff_drive_thread (void *arg) {
+    lcm_t *lcm = lcm_create (NULL);
 
-static state_t *global_state;
+    uint64_t utime_start;
+    while(1) {
+        utime_start = utime_now ();
 
-// This thread continuously publishes command messages to the maebot
-static void * send_cmds (void *data) {
-    state_t *state = data;
-    const uint32_t Hz = 20;
-
-    while (state->running) {
-        pthread_mutex_lock (&state->cmd_mutex);
+        pthread_mutex_lock (&msg_mutex);
         {
-            matd_t *click = matd_create_data (3, 1, state->last_click);
-            double mag = matd_vec_mag (click);
-            matd_t *n = click;
-            if (mag != 0)
-                n = matd_vec_normalize (click);  // Leaks memory
-            double len = dmin (mag, state->joy_bounds);
-
-            // Map vector direction to motor command.
-            state->cmd.utime = utime_now ();
-
-            int sign_x = matd_get (n, 0, 0) >= 0; // > 0 if positive
-            int sign_y = matd_get (n, 1, 0) >= 0; // > 0 if positive
-            float magx = fabs (matd_get (n, 0, 0));
-            float magy = fabs (matd_get (n, 1, 0));
-            float x2y = magx > 0 ? (magx-magy)/magx : 0.0f;
-            float y2x = magy > 0 ? (magy-magx)/magy : 0.0f;
-            float scale = 1.0f*len/state->joy_bounds;
-
-            // Quadrant check
-            if (sign_y && sign_x) {
-                // Quad I
-                state->cmd.motor_left_speed = MAX_FORWARD_SPEED*scale;
-                if (magx > magy)
-                    state->cmd.motor_right_speed = MAX_REVERSE_SPEED*scale*x2y;
-                else
-                    state->cmd.motor_right_speed = MAX_FORWARD_SPEED*scale*y2x;
-            }
-            else if (sign_y && !sign_x) {
-                // Quad II
-                state->cmd.motor_right_speed = MAX_FORWARD_SPEED*scale;
-                if (magx > magy)
-                    state->cmd.motor_left_speed = MAX_REVERSE_SPEED*scale*x2y;
-                else
-                    state->cmd.motor_left_speed = MAX_FORWARD_SPEED*scale*y2x;
-            }
-            else if (!sign_y && !sign_x) {
-                // Quad III
-                state->cmd.motor_left_speed = MAX_REVERSE_SPEED*scale;
-                if (magx > magy)
-                    state->cmd.motor_right_speed = MAX_FORWARD_SPEED*scale*x2y;
-                else
-                    state->cmd.motor_right_speed = MAX_REVERSE_SPEED*scale*y2x;
-            }
-            else {
-                // Quad IV
-                state->cmd.motor_right_speed = MAX_REVERSE_SPEED*scale;
-                if (magx > magy)
-                    state->cmd.motor_left_speed = MAX_FORWARD_SPEED*scale*x2y;
-                else
-                    state->cmd.motor_left_speed = MAX_REVERSE_SPEED*scale*y2x;
-            }
-            if (mag != 0)
-                matd_destroy (n);
-            matd_destroy (click);
-
-            // Publish
-            maebot_diff_drive_t_publish (state->lcm, "MAEBOT_DIFF_DRIVE", &(state->cmd));
+            msg.utime = utime_now ();
+            maebot_diff_drive_t_publish (lcm, "MAEBOT_DIFF_DRIVE", &msg);
         }
-        pthread_mutex_unlock (&state->cmd_mutex);
-        usleep (1000000/Hz);
+        pthread_mutex_unlock (&msg_mutex);
+
+        usleep (CMD_PRD - (utime_now() - utime_start));
     }
-    return NULL;
-}
-static void * demo_path(void *data) {
-    state_t *state = data;
-
-    float fwd_speed_l = FORWARD_SPEED_LEFT;
-    float fwd_speed_r = FORWARD_SPEED_RIGHT;
-
-    // send a drive forward command
-    pthread_mutex_lock(  &state->cmd_mutex);
-    state->cmd.motor_left_speed  = fwd_speed_l;
-    state->cmd.motor_right_speed = fwd_speed_r;
-    pthread_mutex_unlock(&state->cmd_mutex);
-    printf("Moving forward for a while\n");
-
-    // sleep for a while
-    usleep(1000000*TIMETOMOVE);
-
-    // stop the wheels
-    pthread_mutex_lock(  &state->cmd_mutex);
-    state->cmd.motor_left_speed  = 0.0;
-    state->cmd.motor_right_speed = 0.0;
-    pthread_mutex_unlock(&state->cmd_mutex);
-    printf("Stopping the maebot\n");
 
     return NULL;
 }
+static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, 
+        const char *channel, const maebot_motor_feedback_t *msg, void *user) {
+    static int64_t lastTime = 0;
+    static int lastLeftTicks  = 0;
+    static int lastRightTicks = 0;
+    uint64_t dt_us = msg->utime - lastTime;
+    int dlt = msg->encoder_left_ticks  - lastLeftTicks;
+    int drt = msg->encoder_right_ticks - lastRightTicks;
+    float dt_f = dt_us/1000000.0;
 
-// === LCM Handlers =================
-static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char* channel,
-                        const maebot_motor_feedback_t* msg, void* user) {
+    float leftRate  = dlt/(dt_f*4800);   // Datasheet says 48 ticks/cm
+    float rightRate = drt/(dt_f*4800);   // Datasheet says 48 ticks/cm
+    lastTime = msg->utime;
+    lastLeftTicks = msg->encoder_left_ticks;
+    lastRightTicks = msg->encoder_right_ticks;
+
+    printf("encoder_[left, right]_ticks:\t\t%d,\t%d\n",
+            msg->encoder_left_ticks, msg->encoder_right_ticks);
+    printf("delta_[left, right]_ticks:\t\t%d,\t%d\n", dlt, drt);
+    printf("motor_[left, right]_commanded_speed:\t%f,\t%f\n",
+            msg->motor_left_commanded_speed, msg->motor_right_commanded_speed);
+    printf("motor_[left, right]_actual_speed:\t%f,\t%f\n\n\n",
+            leftRate, rightRate);
 }
 
-static void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char* channel,
-                     const maebot_sensor_data_t* msg, void* user) {
-}
-
-
-int main(int argc, char *argv[]) {
+int main (int argc, char *argv[]) {
     // so that redirected stdout won't be insanely buffered.
     setvbuf (stdout, (char *) NULL, _IONBF, 0);
 
-    // === State initialization ============================
-    state_t *state              = calloc(1, sizeof (*state));
-    global_state                = state;   // TODO can this not be global?
-    state->gopt                 = getopt_create();
-    state->app.impl             = state;
-    state->veh.dispatch_order   = -10;
-    state->veh.destroy          = destroy;
-    state->veh.impl             = state;
-    state->last_click[0]        = 0;
-    state->last_click[1]        = 0;
-    state->last_click[2]        = 0;
-    state->joy_bounds           = 10.0;
-    state->running              = 1;
-    state->lcm                  = lcm_create (NULL);
-    state->vw                   = vx_world_create ();
-    pthread_mutex_init (&state->layer_mutex, NULL);
-    pthread_mutex_init (&state->cmd_mutex, NULL);
-    pthread_mutex_init (&state->lcm_mutex, NULL);
-    pthread_mutex_init (&state->render_mutex, NULL);
+    if (pthread_mutex_init (&msg_mutex, NULL)) {
+        printf ("mutex init failed\n");
+        exit (EXIT_FAILURE);
+    }
 
-    // === End =============================================
+	lcm_t *lcm = lcm_create (NULL);
+	if(!lcm) return 1;
+    maebot_motor_feedback_t_subscribe(lcm, "MAEBOT_MOTOR_FEEDBACK",
+                                       motor_feedback_handler, NULL);
 
-    // LCM subscriptions
-    maebot_motor_feedback_t_subscribe(state->lcm, "MAEBOT_MOTOR_FEEDBACK",
-                                       motor_feedback_handler, state);
-    maebot_sensor_data_t_subscribe(state->lcm, "MAEBOT_SENSOR_DATA",
-                                    sensor_data_handler, state);
+    pthread_t lcm_thread;
+    pthread_create (&lcm_thread, NULL, lcm_handler, lcm);
 
-    pthread_t demo_thread;
-    // Spin up thread(s)
-    pthread_create(&state->cmd_thread, NULL, send_cmds, state);
-    //pthread_create(&demo_thread, NULL, demo_path, state);
 
-    // Loop forever
-    demo_path(state);
+    // Init msg
+    // no need for mutex here, as command thread hasn't started yet.
+    pthread_mutex_lock (&msg_mutex);
+    msg.motor_left_speed = MTR_STOP;
+    msg.motor_right_speed = MTR_STOP;
+    usleep (100000);
+    pthread_mutex_unlock (&msg_mutex);
 
-    //for(;;)
-    //    lcm_handle (state->lcm);
-    return 0;
+
+    // Start sending motor commands
+    pthread_t diff_drive_thread_pid;
+    pthread_create (&diff_drive_thread_pid, NULL, diff_drive_thread, NULL);
+
+    // forward
+    pthread_mutex_lock (&msg_mutex);
+    msg.motor_left_speed  = MTR_SPD;
+    msg.motor_right_speed = MTR_SPD;
+    pthread_mutex_unlock (&msg_mutex);
+
+    usleep (3000000);
+
+    pthread_mutex_lock (&msg_mutex);
+    msg.motor_left_speed  = 0.01;
+    msg.motor_right_speed = 0.01;
+    pthread_mutex_unlock (&msg_mutex);
+
+    usleep (1000000);
+
+    pthread_mutex_lock (&msg_mutex);
+    msg.motor_left_speed = MTR_STOP;
+    msg.motor_right_speed = MTR_STOP;
+    pthread_mutex_unlock (&msg_mutex);
+
+    usleep (100000);
+
+    return EXIT_SUCCESS;
 }

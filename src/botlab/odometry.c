@@ -6,7 +6,7 @@
 
 #include "common/getopt.h"
 #include "math/gsl_util_matrix.h"
-//#include "math/gsl_util_vector.h"
+#include "math/gsl_util_vector.h"
 #include "math/gsl_util_blas.h"
 #include "math/math_util.h"
 
@@ -74,7 +74,7 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *chan
     // Next pose (pp = p (+) delta)
     gsl_vector *pp = gsl_vector_alloc(3);
     gsl_matrix *jplus = gsl_matrix_alloc(3,6);
-    xyt_head2tail_gsl(pp, jplus, p, delta); // Compose delta onto p to get new estimate
+    xyt_head2tail_gsl(pp, jplus, delta, p); // Compose delta onto p to get new estimate
    
     // Copy next pose into state
     memcpy(state->xyt, pp->data, 3*sizeof(double));
@@ -104,15 +104,15 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *chan
     memcpy (odo.Sigma, state->Sigma, sizeof state->Sigma);
     pose_xyt_t_publish (state->lcm, state->odometry_channel, &odo);
     
-    gsl_matrix_free(sig_p);
-    gsl_matrix_free(sig_a);
-    gsl_matrix_free(sig_delta);
-    gsl_matrix_free(sig_temp);
-    gsl_matrix_free(sig_pp);
-    gsl_matrix_free(jplus);
-    gsl_vector_free(p);
-    gsl_vector_free(delta);
-    gsl_vector_free(pp);
+    gslu_matrix_free(sig_p);
+    gslu_matrix_free(sig_a);
+    gslu_matrix_free(sig_delta);
+    gslu_matrix_free(sig_temp);
+    gslu_matrix_free(sig_pp);
+    gslu_matrix_free(jplus);
+    gslu_vector_free(p);
+    gslu_vector_free(delta);
+    gslu_vector_free(pp);
 }
 
 static void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)

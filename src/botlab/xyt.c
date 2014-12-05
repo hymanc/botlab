@@ -80,7 +80,7 @@ int xyt_head2tail (double X_ik[3], double J_plus[3*6], const double X_ij[3], con
     double tjk = X_jk[2];
     
     X_ik[0] = xjk*cos(tij) - yjk*sin(tij) + xij;
-    X_ik[1] = xjk*sin(X_ij[2]) - yjk*cos(tij) + yij;
+    X_ik[1] = xjk*sin(tij) + yjk*cos(tij) + yij;
     X_ik[2] = tij + tjk;
    
     if (J_plus != NULL) 

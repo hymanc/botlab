@@ -269,7 +269,7 @@ sama5_state_thread (void *arg)
 		if (state.flags & flags_motor_left_reverse_cmd_mask)
             shared_state.motor_feedback.motor_left_commanded_speed *= -1.0;
 
-		shared_state.motor_feedback.motor_left_commanded_speed = (float)state.motor_right_speed_cmd / UINT16_MAX;
+		shared_state.motor_feedback.motor_right_commanded_speed = (float)state.motor_right_speed_cmd / UINT16_MAX;
 		if (state.flags & flags_motor_right_reverse_cmd_mask)
             shared_state.motor_feedback.motor_right_commanded_speed *= -1.0;
 

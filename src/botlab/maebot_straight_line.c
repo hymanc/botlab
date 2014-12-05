@@ -87,7 +87,6 @@ int main (int argc, char *argv[]) {
     pthread_mutex_lock (&msg_mutex);
     msg.motor_left_speed = MTR_STOP;
     msg.motor_right_speed = MTR_STOP;
-    usleep (100000);
     pthread_mutex_unlock (&msg_mutex);
 
 
@@ -97,25 +96,18 @@ int main (int argc, char *argv[]) {
 
     // forward
     pthread_mutex_lock (&msg_mutex);
-    msg.motor_left_speed  = MTR_SPD;
-    msg.motor_right_speed = MTR_SPD;
+    msg.motor_left_speed  = 0.5;
+    msg.motor_right_speed = 0.5;
     pthread_mutex_unlock (&msg_mutex);
 
     usleep (3000000);
-
-    pthread_mutex_lock (&msg_mutex);
-    msg.motor_left_speed  = 0.01;
-    msg.motor_right_speed = 0.01;
-    pthread_mutex_unlock (&msg_mutex);
-
-    usleep (1000000);
 
     pthread_mutex_lock (&msg_mutex);
     msg.motor_left_speed = MTR_STOP;
     msg.motor_right_speed = MTR_STOP;
     pthread_mutex_unlock (&msg_mutex);
 
-    usleep (100000);
+    usleep (200000);
 
     return EXIT_SUCCESS;
 }

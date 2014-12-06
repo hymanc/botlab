@@ -377,7 +377,8 @@ void * motorSpeedControl_thread (void *data) {
     static int64_t lastTime = 0;                                                   
     static int lastLeftTicks  = 0;                                      
     static int lastRightTicks = 0;                           
-    static int left_de;
+    static float lastLeftError  = 0;
+    static float lastRightError = 0;
     for(;;) {
         int64_t thisTime = utime_now();
         int64_t dt_us = thisTime - lastTime;                    
@@ -396,12 +397,16 @@ void * motorSpeedControl_thread (void *data) {
 
         float leftSetpoint  = shared_state.diff_drive.motor_left_speed;
         float rightSetpoint = shared_state.diff_drive.motor_right_speed;
-        float leftError = leftSetpoint - leftRate;
-        float rightError = rightSetpoint - rightRate;
+        float leftError   = leftSetpoint  - leftRate;
+        float rightError  = rightSetpoint - rightRate;
+        float dle = leftError  - lastLeftError;
+        float dre = rightError - lastRightError;
+
 
         float Kp = 0.8;
-        float leftPWM  = Kp*leftError;
-        float rightPWM = Kp*rightError;
+        float Kd = 0.2;
+        float leftPWM  = Kp*leftError  - Kd*dle;
+        float rightPWM = Kp*rightError - Kd*dre;
         //printf("left rate =%f\n",leftRate);
         //printf("thisTicks = %d\n", thisLeftTicks);
         printf("dlt = %d\n", dlt);
@@ -414,14 +419,16 @@ void * motorSpeedControl_thread (void *data) {
         pthread_mutex_unlock (&statelock);
         //pthread_mutex_unlock (&setPoint_mutex);
         
-        sama5_send_command();
-        
-        //usleep(100000-(thisTime-lastTime));
-        usleep(50000);
-
         lastTime = thisTime;
         lastLeftTicks  = thisLeftTicks;
         lastRightTicks = thisRightTicks;
+        lastLeftError  = leftError;
+        lastRightError = rightError;
+
+        sama5_send_command();
+
+        //usleep(100000-(thisTime-lastTime));
+        usleep(50000);
     }
     return NULL;
 }

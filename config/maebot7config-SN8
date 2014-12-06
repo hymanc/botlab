@@ -1,0 +1,69 @@
+group "tests" {
+    cmd "maebot_diff_drive_test" {
+        exec = "maebot_diff_drive_test";
+        host = "variscite-desktop";
+    }
+    cmd "maebot_laser_test" {
+        exec = "maebot_laser_test";
+        host = "variscite-desktop";
+    }
+    cmd "maebot_motor_feedback_test" {
+        exec = "maebot_motor_feedback_test";
+        host = "variscite-desktop";
+    }
+    cmd "maebot_led_test" {
+        exec = "maebot_led_test";
+        host = "variscite-desktop";
+    }
+    cmd "maebot_sensor_data_test" {
+        exec = "maebot_sensor_data_test";
+        host = "variscite-desktop";
+    }
+}
+
+group "apps" {
+    cmd "rob550_maebot_video_telop" {
+        exec = "rob550_maebot_video_telop --decimate 2";
+        host = "variscite-desktop";
+    }
+    cmd "rob550_maebot_example" {
+        exec = "rob550_maebot_example";
+        host = "variscite-desktop";
+    }
+    cmd "vx_remote_viewer (default)" {
+        exec = "vx_remote_viewer -a 192.168.3.107";
+        host = "ROB550-SN8";
+    }
+}
+
+group "botlab" {
+    cmd "botlab_app" {
+        exec = "botlab_app";
+        host = "variscite-desktop";
+    }
+    cmd "botlab_camera_lidar" {
+        exec = "botlab_camera_lidar --url pgusb:// --config /home/maebot/camera.config";
+        host = "variscite-desktop";
+    }
+    cmd "botlab_odometry" {
+        exec = "botlab_odometry --use-gyro";
+        host = "variscite-desktop";
+    }
+    cmd "vx_remote_viewer (1024x768)" {
+        exec = "vx_remote_viewer -a 192.168.3.107 -W 1024 -H 768";
+        host = "ROB550-SN8";
+    }
+}
+
+group "drivers" {
+    cmd "maebot_driver" {
+        exec = "maebot_driver";
+        host = "variscite-desktop";
+    }
+    cmd "rplidar_driver" {
+        exec = "rplidar_driver";
+        host = "variscite-desktop";
+    }
+}
+
+

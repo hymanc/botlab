@@ -53,8 +53,8 @@ static unsigned char _read_gpio (int fd) {
 typedef struct maebot_shared_state maebot_shared_state_t;
 struct maebot_shared_state {
     maebot_diff_drive_t diff_drive;
-    float leftPWM;
-    float rightPWM;
+    double leftPWM;
+    double rightPWM;
     maebot_motor_feedback_t motor_feedback;
     maebot_sensor_data_t sensor_data;
     maebot_leds_t leds;
@@ -75,7 +75,11 @@ int i2c_leds_fd;
 
 int writen(int fd, const void *buf, size_t count);
 
-void clamp (float *val, float min, float max) {
+void clampf(float *val, float min, float max) {
+    *val = min (*val, max);
+    *val = max (*val, min);
+}
+void clampd(double *val, double min, double max) {
     *val = min (*val, max);
     *val = max (*val, min);
 }
@@ -94,14 +98,7 @@ int send_command (command_t command, int port) {
 
 	serialize_command (&command, (void *)(buf + HEADER_BYTES));
 
-	//int i;
-    //printf("buf: ");
-    //for(i = 0; i < COMMAND_T_BUFFER_BYTES; i++)
-    //{
-    //    printf("%d ", (int) (((uint8_t*)buf + HEADER_BYTES)[i]));
-    //}
-
-    buf[msg_sz - 1] = calc_checksum (buf + HEADER_BYTES, COMMAND_T_BUFFER_BYTES);
+    buf[msg_sz - 1] = calc_checksum(buf + HEADER_BYTES, COMMAND_T_BUFFER_BYTES);
 
     writen (port, buf, msg_sz);
 
@@ -244,20 +241,26 @@ void * sama5_state_thread (void *arg) {
         shared_state.sensor_data.utime_sama5 = state.utime;
 
 		// Copy motor feedback
-		shared_state.motor_feedback.encoder_left_ticks = state.encoder_left_ticks;
-		shared_state.motor_feedback.encoder_right_ticks = state.encoder_right_ticks;
+		shared_state.motor_feedback.encoder_left_ticks = 
+            state.encoder_left_ticks;
+		shared_state.motor_feedback.encoder_right_ticks = 
+            state.encoder_right_ticks;
 
-		shared_state.motor_feedback.motor_left_commanded_speed = (float)state.motor_left_speed_cmd / UINT16_MAX;
+		shared_state.motor_feedback.motor_left_commanded_speed = 
+            (double)state.motor_left_speed_cmd / UINT16_MAX;
 		if (state.flags & flags_motor_left_reverse_cmd_mask)
             shared_state.motor_feedback.motor_left_commanded_speed *= -1.0;
 
-		shared_state.motor_feedback.motor_right_commanded_speed = (float)state.motor_right_speed_cmd / UINT16_MAX;
+		shared_state.motor_feedback.motor_right_commanded_speed = 
+            (double)state.motor_right_speed_cmd / UINT16_MAX;
 		if (state.flags & flags_motor_right_reverse_cmd_mask)
             shared_state.motor_feedback.motor_right_commanded_speed *= -1.0;
 
 		// Actual same as commanded for now. No slewing logic yet.
-		shared_state.motor_feedback.motor_left_actual_speed = shared_state.motor_feedback.motor_left_commanded_speed;
-		shared_state.motor_feedback.motor_right_actual_speed = shared_state.motor_feedback.motor_right_commanded_speed;
+		shared_state.motor_feedback.motor_left_actual_speed = 
+            shared_state.motor_feedback.motor_left_commanded_speed;
+		shared_state.motor_feedback.motor_right_actual_speed = 
+            shared_state.motor_feedback.motor_right_commanded_speed;
 
 		// Copy sensor data
 		shared_state.sensor_data.accel[0] = state.accel[0];
@@ -273,14 +276,20 @@ void * sama5_state_thread (void *arg) {
 		shared_state.sensor_data.line_sensors[1] = state.line_sensors[1];
 		shared_state.sensor_data.line_sensors[2] = state.line_sensors[2];
 		shared_state.sensor_data.range = state.range;
-		shared_state.motor_feedback.motor_current_left = state.motor_current_left;
-		shared_state.motor_feedback.motor_current_right = state.motor_current_right;
-		shared_state.sensor_data.power_button_pressed = state.flags & flags_power_button_mask;
+		shared_state.motor_feedback.motor_current_left = 
+            state.motor_current_left;
+		shared_state.motor_feedback.motor_current_right = 
+            state.motor_current_right;
+		shared_state.sensor_data.power_button_pressed = 
+            state.flags & flags_power_button_mask;
 
-		shared_state.sensor_data.user_button_pressed = _read_gpio (user_button);
+		shared_state.sensor_data.user_button_pressed = 
+            _read_gpio (user_button);
 
-		maebot_motor_feedback_t_publish (lcm, "MAEBOT_MOTOR_FEEDBACK", &shared_state.motor_feedback);
-		maebot_sensor_data_t_publish (lcm, "MAEBOT_SENSOR_DATA", &shared_state.sensor_data);
+		maebot_motor_feedback_t_publish (lcm, "MAEBOT_MOTOR_FEEDBACK", 
+                &shared_state.motor_feedback);
+		maebot_sensor_data_t_publish (lcm, "MAEBOT_SENSOR_DATA", 
+                &shared_state.sensor_data);
 
 		pthread_mutex_unlock (&statelock);
 	}
@@ -375,15 +384,18 @@ void maebot_shared_state_init (maebot_shared_state_t *state) {
 
 void * motorSpeedControl_thread (void *data) {
     static int64_t lastTime = 0;                                                   
-    static int lastLeftTicks  = 0;                                      
-    static int lastRightTicks = 0;                           
-    static int left_de;
+    static int lastLeftTicks  = 0;
+    static int lastRightTicks = 0;
+    //static int left_de;
     for(;;) {
+#if 1   // Eanble slew
+
+#endif
+#if 1   // Enable PID
         int64_t thisTime = utime_now();
         int64_t dt_us = thisTime - lastTime;                    
-        float dt_f = dt_us/1000000.0;                 
+        double dt_f = dt_us/1000000.0;                 
 
-        //pthread_mutex_lock (&setPoint_mutex);   //TODO get rid?
         pthread_mutex_lock (&statelock);
 
         int thisLeftTicks  = shared_state.motor_feedback.encoder_left_ticks;
@@ -391,53 +403,51 @@ void * motorSpeedControl_thread (void *data) {
         int dlt=thisLeftTicks-lastLeftTicks;
         int drt=thisRightTicks-lastRightTicks;
                                        
-        float leftRate  = dlt/(dt_f*4800);   // Datasheet says 48 ticks/cm                      
-        float rightRate = drt/(dt_f*4800);   // Datasheet says 48 ticks/cm   
+        double leftRate  = dlt/(dt_f*4800);   // Datasheet says 48 ticks/cm                      
+        double rightRate = drt/(dt_f*4800);   // Datasheet says 48 ticks/cm   
 
-        float leftSetpoint  = shared_state.diff_drive.motor_left_speed;
-        float rightSetpoint = shared_state.diff_drive.motor_right_speed;
-        float leftError = leftSetpoint - leftRate;
-        float rightError = rightSetpoint - rightRate;
+        double leftSetpoint  = shared_state.diff_drive.motor_left_speed;
+        double rightSetpoint = shared_state.diff_drive.motor_right_speed;
+        double leftError = leftSetpoint - leftRate;
+        double rightError = rightSetpoint - rightRate;
 
-        float Kp = 0.8;
-        float leftPWM  = Kp*leftError;
-        float rightPWM = Kp*rightError;
+        double Kp = 0.8;
+        double leftPWM  = Kp*leftError;
+        double rightPWM = Kp*rightError;
         //printf("left rate =%f\n",leftRate);
         //printf("thisTicks = %d\n", thisLeftTicks);
         printf("dlt = %d\n", dlt);
 
-        clamp(&leftPWM,  -1.0, 1.0);
-        clamp(&rightPWM, -1.0, 1.0);
+        clampd(&leftPWM,  -1.0, 1.0);
+        clampd(&rightPWM, -1.0, 1.0);
 
         shared_state.leftPWM  = leftPWM;
         shared_state.rightPWM = rightPWM;
         pthread_mutex_unlock (&statelock);
-        //pthread_mutex_unlock (&setPoint_mutex);
         
         sama5_send_command();
         
-        //usleep(100000-(thisTime-lastTime));
+        //usleep(100000-(thisTime-lastTime));   //TODO 
         usleep(50000);
 
         lastTime = thisTime;
         lastLeftTicks  = thisLeftTicks;
         lastRightTicks = thisRightTicks;
+#endif
     }
     return NULL;
 }
 
-static void diff_drive_handler (const lcm_recv_buf_t *rbuf, const char *channel,
+static void diff_drive_handler(const lcm_recv_buf_t *rbuf, const char *channel,
                     const maebot_diff_drive_t *msg, void *user) {
     pthread_mutex_lock (&statelock);
 
     // copy into shared state;
     shared_state.diff_drive = *msg;
-    clamp (&shared_state.diff_drive.motor_left_speed, -1.0, 1.0);
-    clamp (&shared_state.diff_drive.motor_right_speed, -1.0, 1.0);
+    clampf(&shared_state.diff_drive.motor_left_speed,  -1.0, 1.0);
+    clampf(&shared_state.diff_drive.motor_right_speed, -1.0, 1.0);
 
     pthread_mutex_unlock (&statelock);
-
-    //sama5_send_command();
 }
 
 static void laser_handler (const lcm_recv_buf_t *rbuf, const char *channel,
@@ -479,12 +489,12 @@ void leds_write (void) {
 
     pthread_mutex_lock (&statelock);
     uint8_t cmd[6];
-    cmd[0] = (1 << 5) | ((shared_state.leds.top_rgb_led_right >> (16 + 3)) & 0x1F);
-    cmd[1] = (2 << 5) | ((shared_state.leds.top_rgb_led_right >> ( 8 + 3)) & 0x1F);
-    cmd[2] = (3 << 5) | ((shared_state.leds.top_rgb_led_right >> ( 0 + 3)) & 0x1F);
-    cmd[3] = (4 << 5) | ((shared_state.leds.top_rgb_led_left  >> (16 + 3)) & 0x1F);
-    cmd[4] = (5 << 5) | ((shared_state.leds.top_rgb_led_left  >> ( 8 + 3)) & 0x1F);
-    cmd[5] = (6 << 5) | ((shared_state.leds.top_rgb_led_left  >> ( 0 + 3)) & 0x1F);
+    cmd[0] = (1<<5) | ((shared_state.leds.top_rgb_led_right >> (16 + 3))&0x1F);
+    cmd[1] = (2<<5) | ((shared_state.leds.top_rgb_led_right >> ( 8 + 3))&0x1F);
+    cmd[2] = (3<<5) | ((shared_state.leds.top_rgb_led_right >> ( 0 + 3))&0x1F);
+    cmd[3] = (4<<5) | ((shared_state.leds.top_rgb_led_left  >> (16 + 3))&0x1F);
+    cmd[4] = (5<<5) | ((shared_state.leds.top_rgb_led_left  >> ( 8 + 3))&0x1F);
+    cmd[5] = (6<<5) | ((shared_state.leds.top_rgb_led_left  >> ( 0 + 3))&0x1F);
     pthread_mutex_unlock (&statelock);
 
     int fd = i2c_leds_fd;
@@ -550,10 +560,12 @@ int main (int argc, char *argv[]) {
     pthread_t leds_write_thread_pid;
     pthread_create (&leds_write_thread_pid, NULL, leds_write_thread, NULL);
     pthread_t motorSpeedControl_pid;
-    pthread_create (&motorSpeedControl_pid, NULL, motorSpeedControl_thread, NULL);
+    pthread_create (&motorSpeedControl_pid, NULL, motorSpeedControl_thread, 
+            NULL);
 
     // Subscribe to LCM Channels
-    maebot_diff_drive_t_subscribe (lcm, "MAEBOT_DIFF_DRIVE", &diff_drive_handler, NULL);
+    maebot_diff_drive_t_subscribe (lcm, "MAEBOT_DIFF_DRIVE", 
+            &diff_drive_handler, NULL);
     printf ("Listening on channel MAEBOT_DIFF_DRIVE\n");
 
     maebot_leds_t_subscribe (lcm, "MAEBOT_LEDS", &leds_handler, NULL);
@@ -572,7 +584,8 @@ int main (int argc, char *argv[]) {
         const int timeout_ms = 500;
         lcm_handle_timeout (lcm, timeout_ms);
         int64_t now = utime_now ();
-        if (now-t0 > startup_time && now-shared_state.motor_feedback.utime > timeout_ms*1000) {
+        if(now-t0 > startup_time && now-shared_state.motor_feedback.utime > 
+                timeout_ms*1000) {
             printf ("Error: the sama5 isn't talking (bottom-board)\n");
             fflush (stdout);
             exit (EXIT_FAILURE);

@@ -43,23 +43,42 @@ struct state {
     double dtheta;
     double dtheta_sigma;
     double gyro_z_offset;
+    
+    double baseline;
 
     double xyt[3]; // 3-dof pose
     double Sigma[3*3];
+    
+    int startup_flag;
 };
 
 static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, 
         const char *channel, const maebot_motor_feedback_t *msg, void *user) {
     state_t *state = user;
-    
+    int l_diff, r_diff;
+    // Startup
+    if(state->startup_flag == 0)
+    {
+	state->previous_left_encoder = msg->encoder_left_ticks;
+	state->previous_right_encoder = msg->encoder_right_ticks;
+	state->startup_flag = 1;
+	return;
+    }
+    else
+    {
     // Compute encoder differences (current "velocity")
-    int l_diff = msg->encoder_left_ticks - state->previous_left_encoder;
-    int r_diff = msg->encoder_right_ticks - state->previous_right_encoder;
+	l_diff = msg->encoder_left_ticks - state->previous_left_encoder;
+	r_diff = msg->encoder_right_ticks - state->previous_right_encoder;
+	
+	// Save current encoder ticks to previous
+	state->previous_left_encoder = msg->encoder_left_ticks;
+	state->previous_right_encoder = msg->encoder_right_ticks;
+    }
     // Handle encoder wrap-around, probably not necessary?
     double dl = l_diff * state->meters_per_tick;
     double dr = r_diff * state->meters_per_tick;
     double ds = 0;
-
+    printf("dl:%.3f; dr:%.3f\n",dl,dr);
     // Current pose
     gsl_vector *p = gsl_vector_alloc(3);
     memcpy(p->data, state->xyt, 3*sizeof(double));
@@ -73,20 +92,29 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf,
     // Next pose (pp = p (+) delta)
     gsl_vector *pp = gsl_vector_alloc(3);
     gsl_matrix *jplus = gsl_matrix_alloc(3,6);
-    xyt_head2tail_gsl(pp, jplus, delta, p); // Compose delta onto p to get new estimate
+    xyt_head2tail_gsl(pp, jplus, p, delta); // Compose delta onto p to get new estimate
    
     // Copy next pose into state
     memcpy(state->xyt, pp->data, 3*sizeof(double));
     
     // Update state covariance matrix 
-    gsl_matrix *sig_p = gsl_matrix_alloc(3,3);
+    gsl_matrix *sig_p = gsl_matrix_calloc(3,3);
     gsl_matrix *sig_a = gsl_matrix_calloc(6,6);
     
+    memcpy(sig_p->data, state->Sigma, 9*sizeof(double));
     // Generate Sigma_delta matrix
-    gsl_matrix *sig_delta = gsl_matrix_alloc(3,3);
-    gsl_matrix_set(sig_delta, 0, 0, state->alpha * fabs(dl));
-    gsl_matrix_set(sig_delta, 1, 1, state->alpha * fabs(dr));
-    gsl_matrix_set(sig_delta, 2, 2, state->beta * fabs(dr + dl));
+    gsl_matrix *sig_delta = gsl_matrix_calloc(3,3);
+    
+    double var_dl = state->alpha * fabs(dl);
+    double var_dr = state->alpha * fabs(dr);
+    double var_ds = state->beta * fabs(dr + dl);
+    double binv = 1/(state->baseline);
+    
+    gsl_matrix_set(sig_delta, 0, 0, 0.25 * (var_dl + var_dr));
+    gsl_matrix_set(sig_delta, 0, 2, 0.5 * binv * (var_dr - var_dl));
+    gsl_matrix_set(sig_delta, 1, 1, var_ds);
+    gsl_matrix_set(sig_delta, 0, 2, 0.5 * binv * (var_dr - var_dl));
+    gsl_matrix_set(sig_delta, 2, 2, pow(binv, 2) * (var_dl + var_dr));
     
     gslu_matrix_set_submatrix(sig_a, 0, 0, sig_p);
     gslu_matrix_set_submatrix(sig_a, 3, 3, sig_delta);
@@ -96,7 +124,7 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf,
     gsl_matrix * sig_pp = gslu_blas_mm_alloc(jplus, sig_temp);
     
     memcpy(state->Sigma, sig_pp->data, sizeof(state->Sigma));
-   
+    //gslu_matrix_printf(sig_pp, "SigPP");
     // publish pose to LCM
     pose_xyt_t odo = { .utime = msg->utime };
     memcpy (odo.xyt, state->xyt, sizeof state->xyt);
@@ -135,6 +163,8 @@ int main (int argc, char *argv[])
 
     state_t *state = calloc (1, sizeof *state);
 
+    state->baseline = 0.08; // 8cm baseline
+    
     state->meters_per_tick = 2.0943951E-4; // Meters per encoder tick
     
     state->gyro_z_offset = 0; // TODO: Gyro offset (Make it a gopt string?)
@@ -154,7 +184,7 @@ int main (int argc, char *argv[])
         getopt_do_usage (state->gopt);
         exit (EXIT_FAILURE);
     }
-
+    
     state->use_gyro = getopt_get_bool (state->gopt, "use-gyro");
     state->odometry_channel = getopt_get_string (state->gopt, "odometry-channel");
     state->feedback_channel = getopt_get_string (state->gopt, "feedback-channel");
@@ -163,6 +193,8 @@ int main (int argc, char *argv[])
     state->beta = getopt_get_double (state->gopt, "beta");
     state->gyro_rms = getopt_get_double (state->gopt, "gyro-rms") * DTOR;
 
+    printf("Alpha:%.3f ; Beta:%.3f\n", state->alpha, state->beta);
+     
     // initialize LCM
     state->lcm = lcm_create (NULL);
     maebot_motor_feedback_t_subscribe (state->lcm, state->feedback_channel, motor_feedback_handler, state);

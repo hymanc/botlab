@@ -270,7 +270,7 @@ static void * command_thread (void *data)
         pthread_mutex_lock (&state->mutex);
         {
             if (!state->manual_control && state->have_goal) {
-                // IMPLEMENT ME
+                // TODO: IMPLEMENT ME
 
             }
             // Publish
@@ -385,7 +385,7 @@ static void maebot_motor_feedback_handler (const lcm_recv_buf_t *rbuf, const cha
 
     pthread_mutex_lock (&state->mutex);
     {
-        // IMPLEMENT ME
+        // TODO: IMPLEMENT ME
     }
     pthread_mutex_unlock (&state->mutex);
 }
@@ -396,7 +396,7 @@ static void maebot_sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *
 
     pthread_mutex_lock (&state->mutex);
     {
-        // IMPLEMENT ME
+        // TODO: IMPLEMENT ME
     }
     pthread_mutex_unlock (&state->mutex);
 }
@@ -407,7 +407,15 @@ static void pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel, c
 
     pthread_mutex_lock (&state->mutex);
     {
-        // IMPLEMENT ME
+        // TODO: IMPLEMENT ME
+	gsl_matrix *sig = gsl_matrix_alloc(3,3);// Reconstruct covariance matrix
+	memcpy(sig->data, msg->Sigma, 9*sizeof(double));
+	gslu_eigen *sig_eigs = gslu_eigen_decomp_alloc (sig);// Compute Eigenvalues/vectors of covariance
+    
+	printf("Eigenstuff\n");
+	gslu_vector_printf(sig_eigs->D,"Evals");
+	gslu_matrix_printf(sig_eigs->V,"Evecs");
+	gslu_matrix_free(sig);
     }
     pthread_mutex_unlock (&state->mutex);
 }
@@ -418,7 +426,7 @@ static void rplidar_laser_handler (const lcm_recv_buf_t *rbuf, const char *chann
 
     pthread_mutex_lock (&state->mutex);
     {
-        // IMPLEMENT ME
+        // TODO: IMPLEMENT ME
     }
     pthread_mutex_unlock (&state->mutex);
 }

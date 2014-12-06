@@ -84,7 +84,9 @@ struct state
     pthread_mutex_t mutex;
 };
 
-
+/**
+ * @brief Display stop handler
+ */
 static void display_finished (vx_application_t *app, vx_display_t *disp)
 {
     state_t *state = app->impl;
@@ -98,6 +100,9 @@ static void display_finished (vx_application_t *app, vx_display_t *disp)
     pthread_mutex_unlock (&state->mutex);
 }
 
+/**
+ * @brief Display startup handler
+ */
 static void display_started (vx_application_t *app, vx_display_t *disp)
 {
     state_t *state = app->impl;
@@ -119,11 +124,17 @@ static void display_started (vx_application_t *app, vx_display_t *disp)
     pthread_mutex_unlock (&state->mutex);
 }
 
+/**
+ * @brief Vx touch handler
+ */
 static int touch_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_touch_event_t *mouse)
 {
     return 0;
 }
 
+/**
+ * @brief Vx mouse handler
+ */
 static int mouse_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_mouse_event_t *mouse)
 {
     state_t *state = vh->impl;
@@ -157,6 +168,9 @@ static int mouse_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t 
     return 0;
 }
 
+/**
+ * @brief Vx Key Handler
+ */
 static int key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
 {
     state_t *state = vh->impl;
@@ -286,10 +300,15 @@ static void * command_thread (void *data)
 }
 
 // This thread continously renders updates from the robot
+/**
+ * @brief Rendering Thread
+ * @param data State struct argument
+ * @return NULL
+ */
 static void * render_thread (void *data)
 {
     state_t *state = data;
-
+    float ellipse_color[4] = {0.0, 0.0, 1.0, 0.5};
     // Grid
     {
         vx_buffer_t *vb = vx_world_get_buffer (state->vw, "grid");
@@ -314,11 +333,13 @@ static void * render_thread (void *data)
     }
 
     const int fps = 30;
-    while (state->running) {
+    while (state->running) 
+    {
         pthread_mutex_lock (&state->mutex);
         {
             // Goal
-            if (state->have_goal) {
+            if (state->have_goal) 
+	    {
                 float color[4] = {0.0, 1.0, 0.0, 0.5};
                 vx_buffer_t *vb = vx_world_get_buffer (state->vw, "goal");
                 vx_buffer_set_draw_order (vb, -1);
@@ -335,8 +356,10 @@ static void * render_thread (void *data)
                 vx_buffer_set_draw_order (vb, 1);
                 enum {ROBOT_TYPE_TRIANGLE, ROBOT_TYPE_DALEK};
                 vx_object_t *robot = NULL;
-                switch (ROBOT_TYPE_DALEK) {
-                    case ROBOT_TYPE_DALEK: {
+                switch (ROBOT_TYPE_DALEK) 
+		{
+                    case ROBOT_TYPE_DALEK: 
+		    {
                         float line[6] = {0.0, 0.0, 0.151, 0.104, 0.0, 0.151};
                         robot = vxo_chain (vxo_lines (vx_resc_copyf (line, 6),
                                                       2,
@@ -356,18 +379,29 @@ static void * render_thread (void *data)
                 }
 
                 if (state->pose)
-                    vx_buffer_add_back (vb,
-                                        vxo_chain (vxo_mat_from_xyt (state->pose->xyt),
-                                                   robot));
-                else
-                    vx_buffer_add_back (vb, robot);
-
-                vx_buffer_swap (vb);
+		{
+                    vx_buffer_add_back (vb, vxo_chain (vxo_mat_from_xyt (state->pose->xyt), robot));
+		    
+		    vx_buffer_swap(vb);
+		}
+                //else
+                    //vx_buffer_add_back(vb, robot);
+               // vx_buffer_swap(vb);
             }
 
-            // Robot Covariance
-            // HINT: vxo_circle is what you want
-
+            // TODO: Robot Covariance
+            {
+		vx_buffer_t *vb = vx_world_get_buffer(state->vw, "Ellipse");
+		vx_buffer_set_draw_order(vb, 1);
+		vx_object_t *ellipse = vxo_chain(vxo_mat_scale3 (5, 2, 1),
+						 vxo_circle (vxo_mesh_style (ellipse_color)));
+		if(state->pose)
+		{
+		    vx_buffer_add_back(vb, vxo_chain(vxo_mat_from_xyt(state->pose->xyt), ellipse));
+		    vx_buffer_swap(vb);
+		}
+		// HINT: vxo_circle is what you want
+	    }
             // Current Lidar Scan
             // HINT: vxo_points is what you want
         }
@@ -379,6 +413,10 @@ static void * render_thread (void *data)
 }
 
 // === LCM Handlers =================
+
+/**
+ * @brief Maebot Motor Encoder Handler
+ */
 static void maebot_motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_motor_feedback_t *msg, void *user)
 {
     state_t *state = user;
@@ -390,6 +428,9 @@ static void maebot_motor_feedback_handler (const lcm_recv_buf_t *rbuf, const cha
     pthread_mutex_unlock (&state->mutex);
 }
 
+/**
+ * @brief Maebot IMU Data handler
+ */
 static void maebot_sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
 {
     state_t *state = user;
@@ -401,25 +442,24 @@ static void maebot_sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *
     pthread_mutex_unlock (&state->mutex);
 }
 
+/**
+ * @brief X-Y-Theta Odometry/Pose Handler
+ */
 static void pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel, const pose_xyt_t *msg, void *user)
 {
     state_t *state = user;
 
     pthread_mutex_lock (&state->mutex);
     {
-        // TODO: IMPLEMENT ME
-	gsl_matrix *sig = gsl_matrix_alloc(3,3);// Reconstruct covariance matrix
-	memcpy(sig->data, msg->Sigma, 9*sizeof(double));
-	gslu_eigen *sig_eigs = gslu_eigen_decomp_alloc (sig);// Compute Eigenvalues/vectors of covariance
-    
-	printf("Eigenstuff\n");
-	gslu_vector_printf(sig_eigs->D,"Evals");
-	gslu_matrix_printf(sig_eigs->V,"Evecs");
-	gslu_matrix_free(sig);
+	state->pose = msg; // Update current pose
+	printf("X:%.3f, Y:%.3f, T:%.3f\n",msg->xyt[0], msg->xyt[1], msg->xyt[2]);
     }
     pthread_mutex_unlock (&state->mutex);
 }
 
+/**
+ * @brief RP LIDAR LCM Handler
+ */
 static void rplidar_laser_handler (const lcm_recv_buf_t *rbuf, const char *channel, const rplidar_laser_t *msg, void *user)
 {
     state_t *state = user;
@@ -431,6 +471,10 @@ static void rplidar_laser_handler (const lcm_recv_buf_t *rbuf, const char *chann
     pthread_mutex_unlock (&state->mutex);
 }
 
+/**
+ * @brief State initialization routine
+ * @return Initialized default state struct
+ */
 state_t *state_create (void)
 {
     state_t *state = calloc (1, sizeof (*state));
@@ -463,8 +507,35 @@ state_t *state_create (void)
     return state;
 }
 
+
+/**
+ * @brief Computes the uncertainty ellipse parameters for the given state
+ * @param state Current state struct
+ */
+void compute_sigma_ellipse(state_t *state)
+{
+    gsl_matrix *sig = gsl_matrix_alloc(3,3);// Reconstruct covariance matrix
+    memcpy(sig->data, state->pose->Sigma, 9*sizeof(double));
+    gslu_eigen *sig_eigs = gslu_eigen_decomp_alloc (sig);// Compute Eigenvalues/vectors of covariance
+
+    printf("Eigenstuff\n");
+    gslu_vector_printf(sig_eigs->D,"Evals");
+    gslu_matrix_printf(sig_eigs->V,"Evecs");
+    
+    // TODO: 
+    gslu_matrix_free(sig);
+}
+
+/**
+ * @brief main
+ */
 int main (int argc, char *argv[])
 {
+    printf("===Botlab===\n");
+    printf("Section 1, Group 4\n");
+    printf("Cody Hyman, Jon Kurzer, and Sarah Spitzer\n");
+    
+    
     // so that redirected stdout won't be insanely buffered.
     setvbuf (stdout, (char *) NULL, _IONBF, 0);
 

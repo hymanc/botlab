@@ -185,7 +185,7 @@ int main (int argc, char *argv[])
         getopt_do_usage (state->gopt);
         exit (EXIT_FAILURE);
     }
-
+    
     state->use_gyro = getopt_get_bool (state->gopt, "use-gyro");
     state->odometry_channel = getopt_get_string (state->gopt, "odometry-channel");
     state->feedback_channel = getopt_get_string (state->gopt, "feedback-channel");
@@ -194,6 +194,8 @@ int main (int argc, char *argv[])
     state->beta = getopt_get_double (state->gopt, "beta");
     state->gyro_rms = getopt_get_double (state->gopt, "gyro-rms") * DTOR;
 
+    printf("Alpha:%.3f ; Beta:%.3f\n", state->alpha, state->beta);
+     
     // initialize LCM
     state->lcm = lcm_create (NULL);
     maebot_motor_feedback_t_subscribe (state->lcm, state->feedback_channel, motor_feedback_handler, state);

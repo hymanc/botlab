@@ -9,28 +9,44 @@
 #include <lcm/lcm.h>
 #include "common/timestamp.h"
 #include "lcmtypes/maebot_sensor_data_t.h"
+#include "lcmtypes/maebot_processed_sensor_data_t.h"
+#include "lcmtypes/maebot_motor_feedback_t.h"
 
 typedef struct maebot_shared_state maebot_shared_state_t;
 struct maebot_shared_state {
     int running;
     maebot_sensor_data_t sensorData;
-    int gyroBias[3];
+    maebot_motor_feedback_t motorFeedback;
+    maebot_processed_sensor_data_t processedSensorData;
 };
 
 pthread_mutex_t sensor_data_mutex;
 
-static void sensor_data_handler (const lcm_recv_buf_t *rbuf,
+static void motor_feedback_handler(const lcm_recv_buf_t *rbuf,
+        const char *channel, const maebot_motor_feedback_t *msg, void *user) {
+
+    maebot_shared_state_t * state = user;
+
+    pthread_mutex_lock(  &sensor_data_mutex);
+    state->motorFeedback = *msg;
+    pthread_mutex_unlock(&sensor_data_mutex);
+}
+static void sensor_data_handler(const lcm_recv_buf_t *rbuf,
         const char *channel, const maebot_sensor_data_t *msg, void *user) {
 
     maebot_shared_state_t * state = user;
 
     pthread_mutex_lock(  &sensor_data_mutex);
     state->sensorData = *msg;
+    state->processedSensorData.utime_sama5 = msg->utime_sama5;
+    for(int i=0; i<3; i++) state->processedSensorData.gyro[i] = 
+        msg->gyro[i] - state->processedSensorData.gyroBias[i];
     pthread_mutex_unlock(&sensor_data_mutex);
 }
 
 void initState(maebot_shared_state_t *state) {
     state->running                = 0;
+
     state->sensorData.utime       = 0;
     state->sensorData.utime_sama5 = 0;
     state->sensorData.range       = 0;
@@ -39,16 +55,44 @@ void initState(maebot_shared_state_t *state) {
         state->sensorData.gyro[i]         = 0;
         state->sensorData.gyro_int[i]     = 0;
         state->sensorData.line_sensors[i] = 0;
-        state->gyroBias[i] = 0;
+        state->processedSensorData.gyroBias[i] = 0;
+        state->processedSensorData.gyro[i] = 0;
     }
+
+    state->motorFeedback.utime               = 0;
+    state->motorFeedback.utime_sama5         = 0;
+    state->motorFeedback.encoder_left_ticks  = 0;
+    state->motorFeedback.encoder_right_ticks = 0;
 }
 double gyroConv(int16_t data) {
     return 250.0*(double)data/INT16_MAX;
 }
-void * print_handler (void *user) {
+void * process_handler(void *user) {
+	lcm_t *lcmP = lcm_create(NULL);
+	if (!lcmP) exit (EXIT_FAILURE);
+
     int64_t lastTime = 0;
     maebot_shared_state_t * state = user;
     maebot_sensor_data_t * data = &state->sensorData;
+    maebot_processed_sensor_data_t * procData = &state->processedSensorData;
+
+    while(state->running) {
+        pthread_mutex_lock(&sensor_data_mutex);
+
+        if(data->utime != lastTime) {
+		    maebot_processed_sensor_data_t_publish(lcmP, 
+                    "MAEBOT_PROCESSED_SENSOR_DATA", procData);
+            lastTime = data->utime;
+        }
+        pthread_mutex_unlock(&sensor_data_mutex);
+    }
+    return NULL;
+}
+void * print_handler(void *user) {
+    int64_t lastTime = 0;
+    maebot_shared_state_t * state = user;
+    maebot_sensor_data_t * data = &state->sensorData;
+    maebot_processed_sensor_data_t * procData = &state->processedSensorData;
 
     while(state->running) {
         pthread_mutex_lock(&sensor_data_mutex);
@@ -63,13 +107,16 @@ void * print_handler (void *user) {
                    gyroConv(data->gyro[1]),
                    gyroConv(data->gyro[2]));
             printf("gyro_corrected[0, 1, 2]: % 15.6lf,% 15.6lf,% 15.6lf\n",
-                   gyroConv(data->gyro[0]-state->gyroBias[0]), 
-                   gyroConv(data->gyro[1]-state->gyroBias[1]), 
-                   gyroConv(data->gyro[2]-state->gyroBias[2]));
+                   gyroConv(data->gyro[0] - procData->gyroBias[0]), 
+                   gyroConv(data->gyro[1] - procData->gyroBias[1]), 
+                   gyroConv(data->gyro[2] - procData->gyroBias[2]));
             printf("gyro_bias[0, 1, 2]:      % 15d,% 15d,% 15d\n",
-                   state->gyroBias[0], 
-                   state->gyroBias[1], 
-                   state->gyroBias[2]);
+                   procData->gyroBias[0], 
+                   procData->gyroBias[1], 
+                   procData->gyroBias[2]);
+            printf("encoder ticks [l r]:     % 15d,% 15d\n",
+                    state->motorFeedback.encoder_left_ticks,
+                    state->motorFeedback.encoder_right_ticks);
             lastTime = data->utime;
         }
         pthread_mutex_unlock(&sensor_data_mutex);
@@ -78,11 +125,6 @@ void * print_handler (void *user) {
 }
 void * lcm_handler (void *lcm) {
     for(;;) lcm_handle(lcm);
-}
-void getGyroBias(uint64_t delay) {
-
-
-    return;
 }
 int main (int argc, char *argv[]) {
     // so that redirected stdout won't be insanely buffered.
@@ -98,11 +140,17 @@ int main (int argc, char *argv[]) {
     maebot_sensor_data_t_subscribe(lcm, "MAEBOT_SENSOR_DATA",
             sensor_data_handler, &sharedState);
 
+    maebot_motor_feedback_t_subscribe(lcm, "MAEBOT_MOTOR_FEEDBACK",
+            motor_feedback_handler, &sharedState);
+
     pthread_t lcm_thread;
     pthread_create(&lcm_thread, NULL, lcm_handler, lcm);
     
-    pthread_t print_thread;
-    pthread_create(&print_thread, NULL, print_handler, &sharedState);
+    pthread_t process_thread;
+    pthread_create(&process_thread, NULL, process_handler, &sharedState);
+
+    //pthread_t print_thread;
+    //pthread_create(&print_thread, NULL, print_handler, &sharedState);
 
     int16_t bias[3];
     int64_t startTime = 0;
@@ -119,6 +167,7 @@ int main (int argc, char *argv[]) {
         int64_t utime = sharedState.sensorData.utime_sama5;
         pthread_mutex_unlock(&sensor_data_mutex);
         while(utime == 0) {
+            usleep(100000);
             pthread_mutex_lock(  &sensor_data_mutex);
             utime = sharedState.sensorData.utime_sama5;
             pthread_mutex_unlock(&sensor_data_mutex);
@@ -126,25 +175,37 @@ int main (int argc, char *argv[]) {
 
         // Get start state for static calibration
         pthread_mutex_lock(  &sensor_data_mutex);
-        maebot_sensor_data_t startSensorState = sharedState.sensorData;
+        maebot_sensor_data_t    startSensorState   = sharedState.sensorData;
+        maebot_motor_feedback_t startMotorFeedback = sharedState.motorFeedback;
         pthread_mutex_unlock(&sensor_data_mutex);
 
         usleep(1000000);   // sleep for a while to gather gyro data
 
         // Get end state for static calibration
         pthread_mutex_lock(  &sensor_data_mutex);
-        maebot_sensor_data_t stopSensorState = sharedState.sensorData;
-        pthread_mutex_unlock(&sensor_data_mutex);
-
-        pthread_mutex_lock(  &sensor_data_mutex);
+        maebot_sensor_data_t    stopSensorState   = sharedState.sensorData;
+        maebot_motor_feedback_t stopMotorFeedback = sharedState.motorFeedback;
         utime = sharedState.sensorData.utime_sama5;
-        pthread_mutex_unlock(&sensor_data_mutex);
 
-        bias[3];
         startTime = startSensorState.utime_sama5;
         stopTime  = stopSensorState.utime_sama5;
         deltaTime = stopTime - startTime;
-        if(deltaTime < 0) continue; // Time roll over: ignore
+        pthread_mutex_unlock(&sensor_data_mutex);
+        if(deltaTime < 0) {
+            //printf("Error: toss this calibration\n");
+            continue; // Time roll over: ignore
+        }
+        if(stopMotorFeedback.encoder_left_ticks != 
+                startMotorFeedback.encoder_left_ticks) {
+            //printf("Error: toss this calibration\n");
+            continue;
+        }
+        if(stopMotorFeedback.encoder_right_ticks != 
+                startMotorFeedback.encoder_right_ticks) {
+            //printf("Error: toss this calibration\n");
+            continue;
+        }
+        //printf("Updating calibration Array\n");
         
         // If I get here, then the calibration succeded.
         for(int i = 0; i<3; i++) {
@@ -175,9 +236,9 @@ int main (int argc, char *argv[]) {
         }
 
         pthread_mutex_lock(  &sensor_data_mutex);
-        sharedState.gyroBias[0] = bias[0];
-        sharedState.gyroBias[1] = bias[1];
-        sharedState.gyroBias[2] = bias[2];
+        sharedState.processedSensorData.gyroBias[0] = bias[0];
+        sharedState.processedSensorData.gyroBias[1] = bias[1];
+        sharedState.processedSensorData.gyroBias[2] = bias[2];
         pthread_mutex_unlock(&sensor_data_mutex);
     }
 
@@ -186,7 +247,7 @@ int main (int argc, char *argv[]) {
 
     sharedState.running = 0;
 
-    pthread_join(print_thread, NULL);
+    //pthread_join(print_thread, NULL);
     usleep(10000);   // a little time to let buffers clear
     return EXIT_SUCCESS;
 }

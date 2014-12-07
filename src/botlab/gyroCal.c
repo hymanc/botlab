@@ -43,7 +43,7 @@ void initState(maebot_shared_state_t *state) {
     }
 }
 double gyroConv(int16_t data) {
-    return (double)data/INT16_MAX;
+    return 250.0*(double)data/INT16_MAX;
 }
 void * print_handler (void *user) {
     int64_t lastTime = 0;

@@ -8,8 +8,13 @@
 #include <assert.h>
 #include <string.h>
 
+#ifndef DTOR
 #define DTOR (M_PI / 180.0)
+#endif
+
+#ifndef RTOD
 #define RTOD (180.0 / M_PI)
+#endif
 
 #define to_radians(x) ( (x) * (M_PI / 180.0 ))
 #define to_degrees(x) ( (x) * (180.0 / M_PI ))

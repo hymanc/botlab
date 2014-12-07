@@ -21,8 +21,7 @@
 #define GYRO_RMS_STRING       "1.0"    // [deg/s]
 
 typedef struct state state_t;
-struct state 
-{
+struct state {
     getopt_t *gopt;
 
     lcm_t *lcm;
@@ -53,8 +52,8 @@ struct state
     int startup_flag;
 };
 
-static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_motor_feedback_t *msg, void *user)
-{
+static void motor_feedback_handler (const lcm_recv_buf_t *rbuf, 
+        const char *channel, const maebot_motor_feedback_t *msg, void *user) {
     state_t *state = user;
     int l_diff, r_diff;
     // Startup

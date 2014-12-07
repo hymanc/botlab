@@ -19,13 +19,15 @@ LDFLAGS = $(LDFLAGS_STD) \
 LIBDEPS = $(call libdeps, $(LDFLAGS))
 
 BIN_BOTLAB_ODOMETRY 			= $(BIN_PATH)/botlab_odometry
-BIN_BOTLAB_APP   			= $(BIN_PATH)/botlab_app
+BIN_BOTLAB_APP   				= $(BIN_PATH)/botlab_app
 BIN_BOTLAB_CAMERA_LIDAR  		= $(BIN_PATH)/botlab_camera_lidar
 BIN_BOTLAB_XYT_TEST 			= $(BIN_PATH)/xyt_test
 BIN_BOTLAB_MAEBOT_STRAIGHT_LINE = $(BIN_PATH)/maebot_straight_line
+BIN_BOTLAB_GYRO_CAL 			= $(BIN_PATH)/gyroCal
 
 ALL = $(BIN_BOTLAB_ODOMETRY) $(BIN_BOTLAB_APP) $(BIN_BOTLAB_CAMERA_LIDAR) \
-$(BIN_BOTLAB_XYT_TEST) $(BIN_BOTLAB_MAEBOT_STRAIGHT_LINE)
+$(BIN_BOTLAB_XYT_TEST) $(BIN_BOTLAB_MAEBOT_STRAIGHT_LINE) \
+$(BIN_BOTLAB_GYRO_CAL)
 
 all: $(ALL)
 
@@ -49,6 +51,10 @@ $(BIN_BOTLAB_XYT_TEST): xyt_test.o xyt.o $(LIBDEPS)
 	@$(CC) -o $@ $^ $(LDFLAGS)
 	
 $(BIN_BOTLAB_MAEBOT_STRAIGHT_LINE): maebot_straight_line.o $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS)
+
+$(BIN_BOTLAB_GYRO_CAL): gyroCal.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 

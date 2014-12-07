@@ -36,4 +36,5 @@
 *.swp
 /solns
 /bin
+*.log
 

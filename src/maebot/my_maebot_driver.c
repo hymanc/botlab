@@ -381,17 +381,39 @@ void maebot_shared_state_init (maebot_shared_state_t *state) {
 //                  //
 //////////////////////
 
+void slew(double setpoint, double *current, double rate) {
+    double error = setpoint - *current;
+    if(       error < -rate) {
+        *current -= rate;
+    } else if(error > rate) {
+        *current += rate;
+    } else {
+        *current = setpoint;
+    }
+}
 
 void * motorSpeedControl_thread (void *data) {
     static int64_t lastTime = 0;                                                   
-    static int lastLeftTicks  = 0;
-    static int lastRightTicks = 0;
-    //static int left_de;
+    static int lastLeftTicks  = 0;                                      
+    static int lastRightTicks = 0;                           
+    static double lastLeftError = 0;
+    static double lastRightError = 0;
+
+    double leftSetpoint  = shared_state.diff_drive.motor_left_speed;
+    double rightSetpoint = shared_state.diff_drive.motor_right_speed;
+
     for(;;) {
 #if 1   // Eanble slew
+        double leftDesired  = shared_state.diff_drive.motor_left_speed;
+        double rightDesired = shared_state.diff_drive.motor_right_speed;
+        slew(leftDesired,  &leftSetpoint,  0.07);
+        slew(rightDesired, &rightSetpoint, 0.05);
 
+#else
+        leftSetpoint  = shared_state.diff_drive.motor_left_speed;
+        rightSetpoint = shared_state.diff_drive.motor_right_speed;
 #endif
-#if 1   // Enable PID
+#if 0   // Enable PID
         int64_t thisTime = utime_now();
         int64_t dt_us = thisTime - lastTime;                    
         double dt_f = dt_us/1000000.0;                 
@@ -406,16 +428,19 @@ void * motorSpeedControl_thread (void *data) {
         double leftRate  = dlt/(dt_f*4800);   // Datasheet says 48 ticks/cm                      
         double rightRate = drt/(dt_f*4800);   // Datasheet says 48 ticks/cm   
 
-        double leftSetpoint  = shared_state.diff_drive.motor_left_speed;
-        double rightSetpoint = shared_state.diff_drive.motor_right_speed;
-        double leftError = leftSetpoint - leftRate;
-        double rightError = rightSetpoint - rightRate;
+        double leftError   = leftSetpoint  - leftRate;
+        double rightError  = rightSetpoint - rightRate;
+        double dle = leftError  - lastLeftError;
+        double dre = rightError - lastRightError;
 
-        double Kp = 0.8;
-        double leftPWM  = Kp*leftError;
-        double rightPWM = Kp*rightError;
+        double Kp = 1.0;
+        double Kd = -0.4;
+        double leftPWM  = Kp*leftError  - Kd*dle;
+        double rightPWM = Kp*rightError - Kd*dre;
+
         //printf("left rate =%f\n",leftRate);
         //printf("thisTicks = %d\n", thisLeftTicks);
+
         printf("dlt = %d\n", dlt);
 
         clampd(&leftPWM,  -1.0, 1.0);
@@ -425,15 +450,20 @@ void * motorSpeedControl_thread (void *data) {
         shared_state.rightPWM = rightPWM;
         pthread_mutex_unlock (&statelock);
         
+        lastTime = thisTime;
+        lastLeftTicks  = thisLeftTicks;
+        lastRightTicks = thisRightTicks;
+        lastLeftError  = leftError;
+        lastRightError = rightError;
+
+#else
+        shared_state.leftPWM  = leftSetpoint;
+        shared_state.rightPWM = rightSetpoint;
+#endif
         sama5_send_command();
         
         //usleep(100000-(thisTime-lastTime));   //TODO 
         usleep(50000);
-
-        lastTime = thisTime;
-        lastLeftTicks  = thisLeftTicks;
-        lastRightTicks = thisRightTicks;
-#endif
     }
     return NULL;
 }

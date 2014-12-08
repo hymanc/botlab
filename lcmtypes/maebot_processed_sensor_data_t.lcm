@@ -2,6 +2,6 @@ struct maebot_processed_sensor_data_t {
     int64_t utime_sama5; // sama5
 
     //int16_t accel[3]; //TODO
-    int16_t gyro[3];
-    int16_t gyroBias[3];
+    int64_t gyro[3];
+    int64_t gyroBias[3];
 }

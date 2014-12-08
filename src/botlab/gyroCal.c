@@ -22,13 +22,24 @@ struct maebot_shared_state {
 
 pthread_mutex_t sensor_data_mutex;
 
+void usleepClock(uint64_t delay, const int64_t *clock, pthread_mutex_t *mutex) {
+    pthread_mutex_lock(  mutex);
+    int64_t startTime = *clock;
+    pthread_mutex_unlock(mutex);
+    int64_t stopTime = startTime;
+    while(stopTime - startTime < delay) {
+        pthread_mutex_lock(  mutex);
+        stopTime = *clock;
+        pthread_mutex_unlock(mutex);
+    }
+}
 static void motor_feedback_handler(const lcm_recv_buf_t *rbuf,
         const char *channel, const maebot_motor_feedback_t *msg, void *user) {
-
     maebot_shared_state_t * state = user;
 
     pthread_mutex_lock(  &sensor_data_mutex);
     state->motorFeedback = *msg;
+
     pthread_mutex_unlock(&sensor_data_mutex);
 }
 static void sensor_data_handler(const lcm_recv_buf_t *rbuf,
@@ -40,7 +51,8 @@ static void sensor_data_handler(const lcm_recv_buf_t *rbuf,
     state->sensorData = *msg;
     state->processedSensorData.utime_sama5 = msg->utime_sama5;
     for(int i=0; i<3; i++) state->processedSensorData.gyro[i] = 
-        msg->gyro[i] - state->processedSensorData.gyroBias[i];
+        //msg->gyro[i] - state->processedSensorData.gyroBias[i];
+        msg->gyro[i];   // Not corrected.
     pthread_mutex_unlock(&sensor_data_mutex);
 }
 
@@ -110,7 +122,7 @@ void * print_handler(void *user) {
                    gyroConv(data->gyro[0] - procData->gyroBias[0]), 
                    gyroConv(data->gyro[1] - procData->gyroBias[1]), 
                    gyroConv(data->gyro[2] - procData->gyroBias[2]));
-            printf("gyro_bias[0, 1, 2]:      % 15d,% 15d,% 15d\n",
+            printf("gyro_bias[0, 1, 2]:      % 15lld,% 15lld,% 15lld\n",
                    procData->gyroBias[0], 
                    procData->gyroBias[1], 
                    procData->gyroBias[2]);
@@ -152,11 +164,11 @@ int main (int argc, char *argv[]) {
     //pthread_t print_thread;
     //pthread_create(&print_thread, NULL, print_handler, &sharedState);
 
-    int16_t bias[3];
+    int64_t bias[3];
     int64_t startTime = 0;
     int64_t stopTime  = 0;
     int64_t deltaTime = 0;
-    int16_t biasArr[10][3];
+    int64_t biasArr[10][3];
 
     // clear array
     for(int i=0; i<10; i++) for(int j=0; j<3; j++) biasArr[i][j] = 0;
@@ -167,7 +179,8 @@ int main (int argc, char *argv[]) {
         int64_t utime = sharedState.sensorData.utime_sama5;
         pthread_mutex_unlock(&sensor_data_mutex);
         while(utime == 0) {
-            usleep(100000);
+            usleepClock(100000, &sharedState.sensorData.utime_sama5, 
+                    &sensor_data_mutex);
             pthread_mutex_lock(  &sensor_data_mutex);
             utime = sharedState.sensorData.utime_sama5;
             pthread_mutex_unlock(&sensor_data_mutex);
@@ -179,19 +192,21 @@ int main (int argc, char *argv[]) {
         maebot_motor_feedback_t startMotorFeedback = sharedState.motorFeedback;
         pthread_mutex_unlock(&sensor_data_mutex);
 
-        usleep(1000000);   // sleep for a while to gather gyro data
+        //usleep(1000000);   // sleep for a while to gather gyro data
+        usleepClock(1000000, &sharedState.sensorData.utime_sama5, 
+                &sensor_data_mutex);
 
         // Get end state for static calibration
         pthread_mutex_lock(  &sensor_data_mutex);
         maebot_sensor_data_t    stopSensorState   = sharedState.sensorData;
         maebot_motor_feedback_t stopMotorFeedback = sharedState.motorFeedback;
         utime = sharedState.sensorData.utime_sama5;
+        pthread_mutex_unlock(&sensor_data_mutex);
 
         startTime = startSensorState.utime_sama5;
         stopTime  = stopSensorState.utime_sama5;
         deltaTime = stopTime - startTime;
-        pthread_mutex_unlock(&sensor_data_mutex);
-        if(deltaTime < 0) {
+        if(deltaTime < 1000) {  // do not accept chunks of time less than 100ms
             //printf("Error: toss this calibration\n");
             continue; // Time roll over: ignore
         }
@@ -208,11 +223,16 @@ int main (int argc, char *argv[]) {
         //printf("Updating calibration Array\n");
         
         // If I get here, then the calibration succeded.
+        double ddeltaTime = (double)deltaTime/1000000.0;    // conv to seconds
         for(int i = 0; i<3; i++) {
             int64_t startInt = startSensorState.gyro_int[i];
             int64_t stopInt  = stopSensorState.gyro_int[i];
-            bias[i] = (int)(round((double)(stopInt - startInt) / (double)deltaTime));
+            bias[i] = (int64_t)(((double)(stopInt - startInt) / ddeltaTime ));
+            //bias[i] = stopInt - startInt;
         }
+        //bias[0] = 1000000000;
+        //bias[1] = -1000000000;
+        //bias[2] = INT16_MAX+1;
 
         /*
         printf("\n");
@@ -224,7 +244,7 @@ int main (int argc, char *argv[]) {
 
         // shift the data down array
         // its only 27 elements so dynamic allocaton seems unessisary
-        int sum[3] = {0, 0, 0};
+        int64_t sum[3] = {0, 0, 0};
         for(int i=10-1; i>0; i--) {
             for(int j=0; j<3; j++) {
                 sum[j] += biasArr[i][j] = biasArr[i-1][j];

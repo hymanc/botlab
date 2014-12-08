@@ -514,16 +514,18 @@ state_t *state_create (void)
  */
 void compute_sigma_ellipse(state_t *state)
 {
-    gsl_matrix *sig = gsl_matrix_alloc(3,3);// Reconstruct covariance matrix
-    memcpy(sig->data, state->pose->Sigma, 9*sizeof(double));
-    gslu_eigen *sig_eigs = gslu_eigen_decomp_alloc (sig);// Compute Eigenvalues/vectors of covariance
+    pthread_mutex_lock(&state->mutex);
+	gsl_matrix *sig = gsl_matrix_alloc(3,3);// Reconstruct covariance matrix
+	memcpy(sig->data, state->pose->Sigma, 9*sizeof(double));
+	gslu_eigen *sig_eigs = gslu_eigen_decomp_alloc (sig);// Compute Eigenvalues/vectors of covariance
 
-    printf("Eigenstuff\n");
-    gslu_vector_printf(sig_eigs->D,"Evals");
-    gslu_matrix_printf(sig_eigs->V,"Evecs");
-    
-    // TODO: 
-    gslu_matrix_free(sig);
+	printf("Eigenstuff\n");
+	gslu_vector_printf(sig_eigs->D,"Evals");
+	gslu_matrix_printf(sig_eigs->V,"Evecs");
+	
+	// TODO: 
+	gslu_matrix_free(sig);
+    pthread_mutex_unlock(&state->mutex);
 }
 
 /**

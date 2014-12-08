@@ -85,9 +85,9 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf,
     
     // Compute new delta
     gsl_vector *delta = gsl_vector_alloc(3);
-    gsl_vector_set(delta, 0, (dl + dr)/2);
+    gsl_vector_set(delta, 0, (dl + dr)/2.0);
     gsl_vector_set(delta, 1, ds);
-    gsl_vector_set(delta, 2, (dr - dl)/2);
+    gsl_vector_set(delta, 2, (dr - dl)/2.0);
     
     // Next pose (pp = p (+) delta)
     gsl_vector *pp = gsl_vector_alloc(3);

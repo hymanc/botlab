@@ -35,6 +35,7 @@
 *.so
 *.swp
 /solns
+/logs
 /bin
 *.log
 

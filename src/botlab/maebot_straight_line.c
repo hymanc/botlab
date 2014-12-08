@@ -11,7 +11,7 @@
 #include "lcmtypes/maebot_motor_feedback_t.h"
 
 #define CMD_PRD 50000 //us  -> 20Hz
-#define MTR_SPD 0.25f
+#define MTR_SPD 0.4f
 #define MTR_STOP 0.0f
 
 maebot_diff_drive_t msg;
@@ -94,16 +94,18 @@ int main (int argc, char *argv[]) {
     pthread_t diff_drive_thread_pid;
     pthread_create (&diff_drive_thread_pid, NULL, diff_drive_thread, NULL);
 
+    sleep(10);
+
     // forward
     pthread_mutex_lock (&msg_mutex);
-    msg.motor_left_speed  = 0.5;
-    msg.motor_right_speed = 0.5;
+    msg.motor_left_speed  = MTR_SPD*1.15;
+    msg.motor_right_speed = MTR_SPD;
     pthread_mutex_unlock (&msg_mutex);
 
-    usleep (3000000);
+    usleep(2000000);
 
     pthread_mutex_lock (&msg_mutex);
-    msg.motor_left_speed = MTR_STOP;
+    msg.motor_left_speed  = MTR_STOP;
     msg.motor_right_speed = MTR_STOP;
     pthread_mutex_unlock (&msg_mutex);
 

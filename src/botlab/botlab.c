@@ -67,6 +67,7 @@ struct state
     lcm_t *lcm;
 
     pose_xyt_t *pose;
+	zarray_t* past_poses;
 
     pthread_t command_thread;
     maebot_diff_drive_t cmd;
@@ -360,12 +361,8 @@ static void * render_thread (void *data)
 		{
                     case ROBOT_TYPE_DALEK: 
 		    {
-                        float line[6] = {0.0, 0.0, 0.151, 0.104, 0.0, 0.151};
-                        robot = vxo_chain (vxo_lines (vx_resc_copyf (line, 6),
-                                                      2,
-                                                      GL_LINES,
-                                                      vxo_lines_style (vx_red, 3.0f)),
-                                           vxo_mat_scale3 (0.104, 0.104, 0.151),
+                       // float line[6] = {0.0, 0.0, 0.151, 0.104, 0.0, 0.151};
+                        robot = vxo_chain (vxo_mat_scale3 (0.104, 0.104, 0.151),
                                            vxo_mat_translate3 (0.0, 0.0, 0.5),
                                            vxo_cylinder (vxo_mesh_style (vx_blue)));
                         break;
@@ -378,16 +375,61 @@ static void * render_thread (void *data)
                         break;
                 }
 
+					// Line
+					int length = 2 * 3 * zarray_size(state->past_poses);
+					float line[length];
+					if(length >= 3)
+					{
+						line[0] = 0.0; // initial x
+						line[1] = 0.0; // inital y
+						line[2] = 0.0; // initial z
+					}
+					pose_xyt_t* last_pose = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
+					int i, j=3;
+					for (i=0; i < zarray_size(state->past_poses); i++)
+					{
+						zarray_get(state->past_poses, i, last_pose);
+						line[j] = (last_pose->xyt)[0]; // next x
+						j++;
+						line[j] = (last_pose->xyt)[1]; // next y
+						j++;
+						line[j] = 0.0; // all z's are 0
+						j++;
+						// double up the end points
+						if(i != (zarray_size(state->past_poses) - 1))
+						{
+							line[j] = (last_pose->xyt)[0];
+							j++;
+							line[j] = (last_pose->xyt)[1];
+							j++;
+							line[j] = 0;
+							j++;
+						}
+					}
+					free(last_pose);
+
                 if (state->pose)
 		{
-                    vx_buffer_add_back (vb, vxo_chain (vxo_mat_from_xyt (state->pose->xyt), robot));
-		    
-		    vx_buffer_swap(vb);
+                    vx_buffer_add_back (vb, vxo_chain (vxo_lines (vx_resc_copyf (line, length),
+                                                      length/3,
+                                                      GL_LINES,
+                                                      vxo_lines_style (vx_red, 3.0f))));
+					vx_buffer_add_back (vb, vxo_mat_from_xyt (state->pose->xyt));
+		    		/*vx_buffer_add_back (vb, vxo_chain (vxo_mat_rotate_z (state->pose->xyt[2])),
+													   vxo_mat_translate3 (state->pose->xyt[0],
+																		   state->pose->xyt[1],
+																		   0.0));*/
+					vx_buffer_add_back (vb, robot);
+					/*vx_buffer_add_back (vb, vxo_chain (vxo_mat_scale3 (0.104, 0.104, 0.151),
+                                           	vxo_mat_translate3 (0.0, 0.0, 0.5),
+                                           	vxo_cylinder (vxo_mesh_style (vx_blue))));*/
+					vx_buffer_swap(vb);
 		}
                 //else
                     //vx_buffer_add_back(vb, robot);
                // vx_buffer_swap(vb);
             }
+
 
             // TODO: Robot Covariance
             {
@@ -452,6 +494,7 @@ static void pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel, c
     pthread_mutex_lock (&state->mutex);
     {
 	state->pose = msg; // Update current pose
+	zarray_add(state->past_poses, state->pose);
 	printf("X:%.3f, Y:%.3f, T:%.3f\n",msg->xyt[0], msg->xyt[1], msg->xyt[2]);
     }
     pthread_mutex_unlock (&state->mutex);
@@ -485,6 +528,8 @@ state_t *state_create (void)
 
     state->have_goal = false;
 
+	state->past_poses = zarray_create(sizeof(pose_xyt_t));
+
     state->vw = vx_world_create ();
     state->app.display_finished = display_finished;
     state->app.display_started = display_started;
@@ -507,6 +552,15 @@ state_t *state_create (void)
     return state;
 }
 
+/*
+ * @brief Free memory used by state
+ * @param state is the current state struct
+ */
+void state_destroy(state_t *state)
+{
+	zarray_destroy(state->past_poses);
+	//TODO: Everything else...
+}
 
 /**
  * @brief Computes the uncertainty ellipse parameters for the given state
@@ -607,4 +661,6 @@ int main (int argc, char *argv[])
     printf ("waiting vx_remote_display_source_destroy...");
     vx_remote_display_source_destroy (remote);
     printf ("done\n");
+
+	state_destroy(state);
 }

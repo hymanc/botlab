@@ -458,15 +458,52 @@ static void * render_thread (void *data)
 		// Lidar
 		{
 			double xy[2] = {0.0,0.0};
-			double diff = DBL_MAX;
+			uint64_t diff = INT_MAX;
 			// find the pose closest to the lidar acquisition
-			int i;
-			for (i=0; i < zarray_size(state->past_poses); i++)
+			int i, pose_idx = zarray_size(state->past_poses) - 1;
+			pose_xyt_t* cur_p = malloc(sizeof(pose_xyt_t));
+			printf("%d stored poses\n", zarray_size(state->past_poses));
+			for (i = zarray_size(state->past_poses) - 1; i >= 0; i--)
 			{
-				//start from end and compare difference in times
+				zarray_get(state->past_poses, i, cur_p);
+				int64_t d = cur_p->utime - state->lidar->utime;
+				if ( d < diff && d >= 0 )
+				{
+					diff = d;
+					pose_idx = i;
+				}
+				else
+				{
+					break;
+				}
 			}
+			if (pose_idx >= 0)
+			{
+				printf("using pose_idx: %d\n", pose_idx);
+				zarray_get( state->past_poses, pose_idx, cur_p);
+				xy[0] = cur_p->xyt[0];
+				xy[1] = cur_p->xyt[1];
+			}
+
+			
+			int num_points = state->lidar->nranges;
+			float points[2*num_points];
+
+			int j, k=0;
+			for(j = 0; j < num_points; j++)
+			{
+				points[k] = state->lidar->ranges[j] * cos( state->lidar->thetas[j]);
+				k++;
+				points[k] = state->lidar->ranges[j] * sin( state->lidar->thetas[j]);
+				k++;
+			}
+
 			vx_buffer_t *vb = vx_world_get_buffer (state->vw, "lidar");
 			vx_buffer_set_draw_order (vb, 1);
+			vx_buffer_add_back (vb,
+							vxo_chain (	vxo_points( vx_resc_copyf (points, 2*num_points),
+													num_points, 
+													vxo_points_style (vx_magenta, 3.0f))));
 			vx_buffer_add_back (vb,
 							vxo_chain (	vxo_mat_scale2(0.1,0.1),
 										vxo_mat_translate2 (xy[0], xy[1]),

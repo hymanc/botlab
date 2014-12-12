@@ -217,12 +217,13 @@ static void * render_thread (void *user)
 
     vx_buffer_t *vb_text = vx_world_get_buffer (state->vw, "text");
     vx_buffer_t *vb_image = vx_world_get_buffer (state->vw, "image");
-
+    
     // Render viewer text
     vx_object_t *vt = vxo_text_create (VXO_TEXT_ANCHOR_TOP_RIGHT, "<<right,#0000ff>>Robot viewer!\n");
     vx_buffer_add_back (vb_text, vxo_pix_coords (VX_ORIGIN_TOP_RIGHT, vt));
     vx_buffer_swap (vb_text);
-
+    
+    // Render loop
     while (state->running) 
     {
         int64_t t0 = utime_now ();
@@ -249,25 +250,59 @@ static void * render_thread (void *user)
             pthread_mutex_lock (&state->mutex);
             {
                 // Project lidar points into camera image
-                if (state->calib) {
+                if (state->calib) 
+		{
                     const calib_t *calib = state->calib;
 		    
-		    gsl_matrix *cmat;
-                    for (int i=0; i < zarray_size (state->laser_points); i++) {
+		    gsl_matrix *cmat = state->cal_matrix;
+		    //float lpts[2*zarray_size(state->laser_points)];
+		    //int laserImgCount;
+                    for (int i=0; i < zarray_size (state->laser_points); i++) 
+		    {
                         // laser point in camera reference frame
                         float p_c[3];
-                        zarray_get (state->laser_points, i, p_c);
-                        float X=p_c[0], Y=p_c[1], Z=p_c[2];
+                        zarray_get (state->laser_points, i, p_c); // TODO: Check z-correctness of laser
+                        float X = p_c[0], Y = p_c[1], Z = p_c[2];
     
-                        // Pinhole model w/ distortion
-                        int u_d=0, v_d=0;
+			gsl_vector *xyz_world = gsl_vector_alloc(4);
+			gsl_vector_set(xyz_world, 0, X);
+			gsl_vector_set(xyz_world, 0, Y);
+			gsl_vector_set(xyz_world, 0, Z);
+			gsl_vector_set(xyz_world, 3, 1);
+			
+			gsl_vector *xy_n = gslu_blas_mv_alloc(cmat, xyz_world); // Linear undistorted image coordinates
+			
+			// Pinhole model w/ distortion
+                        int u_d = 0;
+                        int v_d = 0;
                         if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
 			{
-			    cmat = state->cam_matrix; // TODO: IMPLEMENT ME (Caltech Calibration)
-                        }
+			    printf("Using Caltech Distortion/Calibration Model\n");
+			    double x = gsl_vector_get(xy_n, 0);
+			    double y = gsl_vector_get(xy_n, 1);
+			    
+			    double r2 = pow(x,2) + pow(y,2);
+			    double r4 = pow(r2, 2);
+			    double r6 = pow(r2, 3);
+			    double l0 = state->calib->lc[0];
+			    double l1 = state->calib->lc[1];
+			    double k0 = state->calib->kc[0];
+			    double k1 = state->calib->kc[1];
+			    double k2 = state->calib->kc[2];
+			    
+			    // Compute Radial Distortion Scalar
+			    double rd = 1 + k0*r2 + k1*r4 + k2*r6;
+		
+			    // Compute Tangential Distortion Vector
+			    double dx0 = 2*l0*x*y + l1*(r2 + 2*pow(x,2));
+			    double dx1 = l1*(r2 + 2*pow(y,2)) + 2*l1*x*y;
+			    u_d = round(rd * x + dx0);
+			    v_d = round(rd * y + dx1);
+			}
                         else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
 			{
-                            // TODO: IMPLEMENT ME (Angular Polynomial Calibration)
+			    printf("Using Angular Polynomial Distortion/Calibration Model\n");
+                            // TODO: (Angular Polynomial Calibration?)
                         }
                         else {
                             printf ("error: unsupported distortion model: %s\n", calib->class);
@@ -275,15 +310,20 @@ static void * render_thread (void *user)
                         }
 
                         // Draw projected lidar points in image
-                        if (u_d > 0 && u_d < im->width-1 && v_d > 0 && v_d < im->height-1) {
+                        if (u_d > 0 && u_d < im->width-1 && v_d > 0 && v_d < im->height-1) 
+			{
                             const float depth = 256;
                             float hue = Z * depth;
                             if (hue > depth)
                                 hue = depth;
-                            uint32_t color = hsv2rgb (hue, 1.0, 1.0);
-			    draw_lidar_dot(im, (float){u,v});
-                            // TODO: Draw LIDAR dots on the image at the correct x-y location
+                            uint32_t color = hsv2rgb(hue, 1.0, 1.0);
+                            // TODO: Add LIDAR data to buffer
+			    
+			    //vx_buffer_add_back();
                         }
+                        
+                        gslu_vector_free(xyz_world);
+			gslu_vector_free(xy_n);
                     }
                 }
             }

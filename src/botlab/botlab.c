@@ -387,7 +387,7 @@ static void * render_thread (void *data)
 											vxo_mat_scale3 (0.104, 0.104, 0.151),
                                            	vxo_mat_translate3 (0.0, 0.0, 0.5),
                                            	vxo_cylinder (vxo_mesh_style (vx_blue)));
-						robot_scale = vxo_chain ( vxo_mat_scale3 (0.104, 0.104, 0.151));
+						robot_scale = vxo_chain ( vxo_mat_scale3 (0.104, 0.104, 0.151), vxo_mat_translate3 (0.0, 0.0, 0.5));
                         break;
                     }
                     case ROBOT_TYPE_TRIANGLE:
@@ -415,8 +415,10 @@ static void * render_thread (void *data)
 					{
 						zarray_get(state->past_poses, i, last_pose);
 						line[j] = (last_pose->xyt)[0]; // next x
+						printf("line: x: %lf, ", line[j]);
 						j++;
 						line[j] = (last_pose->xyt)[1]; // next y
+						printf("y: %lf\n", line[j]);
 						j++;
 						line[j] = 0.0; // all z's are 0
 						j++;
@@ -471,20 +473,20 @@ static void * render_thread (void *data)
             // HINT: vxo_points is what you want
 
 		// Lidar
-			double xy[2] = {0.0,0.0};
 			int64_t diff = INT_MAX;
 			// find the pose closest to the lidar acquisition
 			int k, pose_idx = zarray_size(state->past_poses) - 1;
-			pose_xyt_t* cur_p = malloc(sizeof(pose_xyt_t));
+			pose_xyt_t* cur_p = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
 			printf("%d stored poses\n", zarray_size(state->past_poses));
 			for (k = zarray_size(state->past_poses) - 1; k >= 0; k--)
 			{
 				zarray_get(state->past_poses, k, cur_p);
+				printf("checking d pose %d: x: %lf, y: %lf, t: %lf\n", k, cur_p->xyt[0], cur_p->xyt[1], cur_p->xyt[2]);
 				int64_t d = abs_64(state->lidar->utime - cur_p->utime);
 				if ( d < diff )
 				{
 					diff = d;
-					pose_idx = i;
+					pose_idx = k;
 				}
 				else
 				{
@@ -493,42 +495,48 @@ static void * render_thread (void *data)
 			}
 					
 			int num_points = state->lidar->nranges;
-			float points[2*num_points];
+			float *points = malloc ( (3 * num_points) * sizeof(float));
 
 			if (pose_idx >= 0)
 			{
 				printf("using pose_idx: %d\n", pose_idx);
 				zarray_get( state->past_poses, pose_idx, cur_p);
-				xy[0] = cur_p->xyt[0];
-				xy[1] = cur_p->xyt[1];
 					
+				printf("cur_p x: %lf, y: %lf, t: %lf\n", (cur_p->xyt)[0], (cur_p->xyt)[1], (cur_p->xyt)[2]);
 				int l, m=0;
 				printf("number of lidar points: %d\n", num_points);
 				for(l = 0; l < num_points; l++)
 				{
 					// find theta base on theta relative to robot + theta of that pose
-					double theta = state->lidar->thetas[l] + cur_p->xyt[2];
-					points[m] = state->lidar->ranges[l] * cos(theta);
-					printf("lidar x: %lf, ", points[m]);
+					points[m] = state->lidar->ranges[l] * cos(state->lidar->thetas[l]);
 					m++;
-					points[m] = state->lidar->ranges[l] * sin(theta);
-					printf("lidar y: %lf\n", points[m]);
+					points[m] = -state->lidar->ranges[l] * sin(state->lidar->thetas[l]);
+					m++;
+					points[m] = 0;
 					m++;
 				}
-			}
 
 			vx_buffer_t *vblidar = vx_world_get_buffer (state->vw, "lidar");
-			vx_buffer_set_draw_order (vblidar, 1);
+			//vx_buffer_set_draw_order (vblidar, 1);
 			vx_buffer_add_back (vblidar,
-							vxo_chain (	vxo_points( vx_resc_copyf (points, 2*num_points),
+							vxo_chain (	/*vxo_mat_from_xyt (cur_p->xyt),*/
+										vxo_mat_translate3 (cur_p->xyt[0],
+															cur_p->xyt[1], 0),
+										vxo_mat_rotate_z ( cur_p->xyt[2] ),
+										vxo_points( vx_resc_copyf (points, 3*num_points),
 													num_points, 
 													vxo_points_style (vx_magenta, 3.0f))));
-			vx_buffer_add_back (vblidar,
+			/*vx_buffer_add_back (vblidar,
 							vxo_chain (	vxo_mat_scale2(0.1,0.1),
 										vxo_mat_translate2 (xy[0], xy[1]),
-									   	vxo_circle (vxo_mesh_style (vx_magenta))));
-			vx_buffer_add_back (vblidar, robot_scale);
+									   	vxo_circle (vxo_mesh_style (vx_magenta)), 
+										vxo_mat_translate2 (10, 10)));*/
+				//vx_buffer_add_back (vblidar, vxo_mat_from_xyt (cur_p->xyt));
+				//vx_buffer_add_back (vblidar, vxo_mat_from_xyt (state->pose->xyt));
+			
+			//vx_buffer_add_back (vblidar, robot_scale);
 			vx_buffer_swap (vblidar);
+			}
 
         pthread_mutex_unlock (&state->mutex);
         usleep (1000000/fps);

@@ -177,14 +177,6 @@ static void * command_thread (void *user)
 }
 
 /**
- * @brief Draws a LIDAR dot on a camera image
- */
-void draw_lidar_dot(state_t *state, float xyz[3])
-{
-    
-}
-
-/**
  * @brief Initialize calibration matrices
  */
 void initialize_calibration(state_t *state)
@@ -202,10 +194,10 @@ void initialize_calibration(state_t *state)
     gsl_matrix_set(K, 2, 2, 1);
     
     // Set Extrinsics matrix
-    gsl_matrix_set(H, 0, 0, 1);		// X-translation
-    gsl_matrix_set(H, 1, 1, 1);		// Y-translation
-    gsl_matrix_set(H, 2, 2, 1);		// Z-translation
-    gsl_matrix_set(H, 2, 3, 0.088);
+    gsl_matrix_set(H, 0, 0, 1);		// No rotation R=I
+    gsl_matrix_set(H, 1, 1, 1);		
+    gsl_matrix_set(H, 2, 2, 1);		
+    gsl_matrix_set(H, 2, 3, 0.088);	// Z-translation
     
     state->cal_matrix = gslu_blas_mm_alloc(K, H); // Store out combined cal matrix
 }
@@ -259,21 +251,19 @@ static void * render_thread (void *user)
                 // Project lidar points into camera image
                 if (state->calib) {
                     const calib_t *calib = state->calib;
+		    
+		    gsl_matrix *cmat;
                     for (int i=0; i < zarray_size (state->laser_points); i++) {
                         // laser point in camera reference frame
                         float p_c[3];
                         zarray_get (state->laser_points, i, p_c);
                         float X=p_c[0], Y=p_c[1], Z=p_c[2];
-
-			// Camera matrices
-			gsl_matrix *H = gsl_matrix_calloc(3,4);	// Camera Extrinsics
-			gsl_matrix *K = gsl_matrix_calloc(3,3); // Camera Intrinsics
-			
+    
                         // Pinhole model w/ distortion
                         int u_d=0, v_d=0;
                         if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
 			{
-                            // TODO: IMPLEMENT ME (Caltech Calibration)
+			    cmat = state->cam_matrix; // TODO: IMPLEMENT ME (Caltech Calibration)
                         }
                         else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
 			{
@@ -291,8 +281,8 @@ static void * render_thread (void *user)
                             if (hue > depth)
                                 hue = depth;
                             uint32_t color = hsv2rgb (hue, 1.0, 1.0);
-			    
-                            // TODO: IMPLEMENT ME 
+			    draw_lidar_dot(im, (float){u,v});
+                            // TODO: Draw LIDAR dots on the image at the correct x-y location
                         }
                     }
                 }

@@ -224,11 +224,13 @@ render_thread (void *user)
 
                         // Pinhole model w/ distortion
                         int u_d=0, v_d=0;
-                        if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) {
-                            // IMPLEMENT ME
+                        if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
+			{
+                            // TODO: IMPLEMENT ME
                         }
-                        else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) {
-                            // IMPLEMENT ME
+                        else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
+			{
+                            // TODO: IMPLEMENT ME
                         }
                         else {
                             printf ("error: unsupported distortion model: %s\n", calib->class);
@@ -243,7 +245,7 @@ render_thread (void *user)
                                 hue = depth;
                             uint32_t color = hsv2rgb (hue, 1.0, 1.0);
 
-                            // IMPLEMENT ME
+                            // TODO: IMPLEMENT ME
                         }
                     }
                 }

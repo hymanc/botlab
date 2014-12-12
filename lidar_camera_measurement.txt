@@ -1,0 +1,4 @@
+Image Sensor to LIDAR center
+X:2mm
+Y:0mm
+Z:53mm

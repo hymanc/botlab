@@ -36,20 +36,23 @@
 #define JOYSTICK_REVERSE_SPEED2 -0.35f
 #define JOYSTICK_FORWARD_SPEED2  0.45f
 
+// Camera calibration struct (Caltech model)
 typedef struct calib calib_t;
-struct calib {
+struct calib 
+{
     char *class;
-    double skew;
-    double fc[2];
-    double cc[2];
-    int kc_len;
-    double *kc;
-    int lc_len;
-    double *lc;
+    double skew;	// Camera skew
+    double fc[2];	// Focal length(s)
+    double cc[2];	// Principal point (x,y)
+    int kc_len;		// Number of radial distortion coefficients
+    double *kc;		// Radial Distortion coefficients
+    int lc_len;		// Length of L Tangential parameters
+    double *lc;		// Tangential Distortion coefficients
 };
 
 typedef struct state state_t;
-struct state {
+struct state 
+{
     bool running;
 
     getopt_t *gopt;
@@ -70,16 +73,20 @@ struct state {
 
     config_t *config;
     calib_t *calib;
+    gsl_matrix *K;
+    gsl_matrix *H;
+    gsl_matrix *cal_matrix;
+    
     zarray_t *laser_points; // zarray of float[3] {x, y, z} elements
 
+    
     pthread_mutex_t mutex;
 };
 
 static int verbose = 0;
 
 // From http://www.cs.rit.edu/~ncs/color/t_convert.html
-static uint32_t
-hsv2rgb (float h, float s, float v)
+static uint32_t hsv2rgb (float h, float s, float v)
 {
     float r, g, b;
     if (s == 0) {
@@ -131,8 +138,7 @@ hsv2rgb (float h, float s, float v)
     return abgr;
 }
 
-static void rplidar_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-                             const rplidar_laser_t *msg, void *user)
+static void rplidar_handler (const lcm_recv_buf_t *rbuf, const char *channel, const rplidar_laser_t *msg, void *user)
 {
     state_t *state = user;
 
@@ -140,10 +146,9 @@ static void rplidar_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     {
         zarray_clear (state->laser_points);
 
-        for (int i=0; i < msg->nranges; i++) {
-
+        for (int i=0; i < msg->nranges; i++) 
+	{
             // CONVERT POINTS TO CAMERA FRAME AND STORE IN ZARRAY
-
             float p[3];
             zarray_add (state->laser_points, p);
         }
@@ -152,8 +157,7 @@ static void rplidar_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     printf ("msg->utime = %"PRId64"\n", msg->utime);
 }
 
-static void *
-command_thread (void *user)
+static void * command_thread (void *user)
 {
     state_t *state = user;
 
@@ -172,8 +176,44 @@ command_thread (void *user)
     return NULL;
 }
 
-static void *
-render_thread (void *user)
+/**
+ * @brief Draws a LIDAR dot on a camera image
+ */
+void draw_lidar_dot(state_t *state, float xyz[3])
+{
+    
+}
+
+/**
+ * @brief Initialize calibration matrices
+ */
+void initialize_calibration(state_t *state)
+{
+    gsl_matrix *H = state->H;
+    gsl_matrix *K = state->K;
+    calib_t *cal = state->calib;
+    
+    // Set Intrinsics matrix
+    gsl_matrix_set(K, 0, 0, cal->fc[0]); // Focal-x
+    gsl_matrix_set(K, 1, 1, cal->fc[1]); // Focal-y
+    gsl_matrix_set(K, 0, 1, cal->skew);	 // Skew
+    gsl_matrix_set(K, 0, 2, cal->cc[0]); // Principal-x
+    gsl_matrix_set(K, 1, 2, cal->cc[1]); // Principal-y
+    gsl_matrix_set(K, 2, 2, 1);
+    
+    // Set Extrinsics matrix
+    gsl_matrix_set(H, 0, 0, 1);		// X-translation
+    gsl_matrix_set(H, 1, 1, 1);		// Y-translation
+    gsl_matrix_set(H, 2, 2, 1);		// Z-translation
+    gsl_matrix_set(H, 2, 3, 0.088);
+    
+    state->cal_matrix = gslu_blas_mm_alloc(K, H); // Store out combined cal matrix
+}
+
+/**
+ * @brief Main rendering thread
+ */
+static void * render_thread (void *user)
 {
     state_t *state = user;
     image_source_t *isrc = state->isrc;
@@ -191,12 +231,14 @@ render_thread (void *user)
     vx_buffer_add_back (vb_text, vxo_pix_coords (VX_ORIGIN_TOP_RIGHT, vt));
     vx_buffer_swap (vb_text);
 
-    while (state->running) {
+    while (state->running) 
+    {
         int64_t t0 = utime_now ();
         printf ("t0 = %"PRId64"\n", t0);
 
         image_u32_t *im = NULL;
-        if (isrc) {
+        if (isrc)
+	{
             image_source_data_t isdata;
             int res = isrc->get_frame (isrc, &isdata);
             if (!res)
@@ -210,7 +252,8 @@ render_thread (void *user)
                 printf("Got frame %p\n", im);
         }
 
-        if (im != NULL) {
+        if (im != NULL) 
+	{
             pthread_mutex_lock (&state->mutex);
             {
                 // Project lidar points into camera image
@@ -222,15 +265,19 @@ render_thread (void *user)
                         zarray_get (state->laser_points, i, p_c);
                         float X=p_c[0], Y=p_c[1], Z=p_c[2];
 
+			// Camera matrices
+			gsl_matrix *H = gsl_matrix_calloc(3,4);	// Camera Extrinsics
+			gsl_matrix *K = gsl_matrix_calloc(3,3); // Camera Intrinsics
+			
                         // Pinhole model w/ distortion
                         int u_d=0, v_d=0;
                         if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
 			{
-                            // TODO: IMPLEMENT ME
+                            // TODO: IMPLEMENT ME (Caltech Calibration)
                         }
                         else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
 			{
-                            // TODO: IMPLEMENT ME
+                            // TODO: IMPLEMENT ME (Angular Polynomial Calibration)
                         }
                         else {
                             printf ("error: unsupported distortion model: %s\n", calib->class);
@@ -244,8 +291,8 @@ render_thread (void *user)
                             if (hue > depth)
                                 hue = depth;
                             uint32_t color = hsv2rgb (hue, 1.0, 1.0);
-
-                            // TODO: IMPLEMENT ME
+			    
+                            // TODO: IMPLEMENT ME 
                         }
                     }
                 }
@@ -253,7 +300,8 @@ render_thread (void *user)
             pthread_mutex_unlock (&state->mutex);
 
             double decimate = getopt_get_double (state->gopt, "decimate");
-            if (decimate != 1.0) {
+            if (decimate != 1.0) 
+	    {
                 image_u32_t *im2 = image_util_u32_decimate (im, decimate);
                 image_u32_destroy (im);
                 im = im2;
@@ -279,27 +327,25 @@ render_thread (void *user)
     return NULL;
 }
 
-static int
-touch_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_touch_event_t *mouse)
+static int touch_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_touch_event_t *mouse)
 {
     return 0;
 }
 
-static int
-mouse_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_mouse_event_t *mouse)
+static int mouse_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_mouse_event_t *mouse)
 {
     return 0;
 }
 
-static int
-key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
+static int key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
 {
     state_t *state = vh->impl;
 
     static bool key_shift=0, key_up=0, key_down=0, key_left=0, key_right=0, manual_control;
 
 
-    switch (key->key_code) {
+    switch (key->key_code) 
+    {
         case VX_KEY_SHIFT:
             key_shift = !key->released;
             break;
@@ -323,7 +369,8 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
             break;
     }
 
-    if (manual_control) {
+    if (manual_control) 
+    {
         pthread_mutex_lock (&state->mutex);
         {
             // default to zero
@@ -375,8 +422,7 @@ key_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_key_event_t *key)
     return 0;
 }
 
-static void
-display_finished (vx_application_t *app, vx_display_t *disp)
+static void display_finished (vx_application_t *app, vx_display_t *disp)
 {
     state_t *state = app->impl;
     pthread_mutex_lock (&state->mutex);
@@ -389,8 +435,7 @@ display_finished (vx_application_t *app, vx_display_t *disp)
     pthread_mutex_unlock (&state->mutex);
 }
 
-static void
-display_started (vx_application_t *app, vx_display_t *disp)
+static void display_started (vx_application_t *app, vx_display_t *disp)
 {
     state_t *state = app->impl;
 
@@ -407,20 +452,20 @@ display_started (vx_application_t *app, vx_display_t *disp)
 }
 
 
-static void
-nodestroy (vx_event_handler_t *vh)
+static void nodestroy (vx_event_handler_t *vh)
 {
     // do nothing, since this event handler is statically allocated.
 }
 
 static state_t *global_state;
-static void
-handler (int signum)
+
+static void handler (int signum)
 {
     if (!global_state->running)
         exit (EXIT_FAILURE);
 
-    switch (signum) {
+    switch (signum) 
+    {
         case SIGINT:
         case SIGQUIT:
             global_state->running = 0;
@@ -430,52 +475,50 @@ handler (int signum)
     }
 }
 
-calib_t *
-load_camera_calib (getopt_t *gopt)
+calib_t * load_camera_calib (getopt_t *gopt)
 {
     calib_t *calib = calloc (1, sizeof *calib);
 
     // Load camera calibration
     char *config_path = realpath (getopt_get_string (gopt, "config"), NULL);
-    if (config_path == NULL) {
+    if (config_path == NULL) 
+    {
         perror ("couldn't resolve path for config file");
         exit (EXIT_FAILURE);
     }
 
     FILE *config_file = fopen (config_path, "r");
-    if (!config_file) {
+    if (!config_file) 
+    {
         perror ("couldn't open config file");
         exit (EXIT_FAILURE);
     }
     config_t *config = config_parse_file (config_file, config_path);
 
-    calib->class = config_get_str_or_fail (config,
-                                           "aprilCameraCalibration.camera0000.class");
-    calib->skew = config_get_double_or_default (config,
-                                                "aprilCameraCalibration.camera0000.intrinsics.skew", 0.0);
-    config_get_double_array (config,
-                             "aprilCameraCalibration.camera0000.intrinsics.fc", calib->fc, 2);
-    config_get_double_array (config,
-                             "aprilCameraCalibration.camera0000.intrinsics.cc", calib->cc, 2);
+    calib->class = config_get_str_or_fail (config, "aprilCameraCalibration.camera0000.class");
+    calib->skew = config_get_double_or_default (config, "aprilCameraCalibration.camera0000.intrinsics.skew", 0.0);
+    config_get_double_array (config, "aprilCameraCalibration.camera0000.intrinsics.fc", calib->fc, 2);
+    config_get_double_array (config, "aprilCameraCalibration.camera0000.intrinsics.cc", calib->cc, 2);
 
-    calib->kc_len = config_get_array_len (config,
-                                          "aprilCameraCalibration.camera0000.intrinsics.kc");
-    if (calib->kc_len < 0) {
+    calib->kc_len = config_get_array_len (config, "aprilCameraCalibration.camera0000.intrinsics.kc");
+    if (calib->kc_len < 0) 
+    {
         printf ("error: kc not found in config\n");
         exit (EXIT_FAILURE);
     }
-    else {
+    else 
+    {
         calib->kc = calloc (calib->kc_len, sizeof *(calib->kc));
-        config_get_double_array (config, "aprilCameraCalibration.camera0000.intrinsics.kc",
-                                 calib->kc, calib->kc_len);
+        config_get_double_array (config, "aprilCameraCalibration.camera0000.intrinsics.kc", calib->kc, calib->kc_len);
     }
 
-    if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) {
+    if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
+    {
         calib->lc_len = config_get_array_len (config, "aprilCameraCalibration.camera0000.intrinsics.lc");
-        if (calib->lc_len > 0) {
+        if (calib->lc_len > 0) 
+	{
             calib->lc = calloc (calib->lc_len, sizeof *(calib->lc));
-            config_get_double_array (config, "aprilCameraCalibration.camera0000.intrinsics.lc",
-                                     calib->lc, calib->lc_len);
+            config_get_double_array (config, "aprilCameraCalibration.camera0000.intrinsics.lc", calib->lc, calib->lc_len);
         }
     }
 
@@ -485,25 +528,24 @@ load_camera_calib (getopt_t *gopt)
     printf ("    skew: %f\n", calib->skew);
     printf ("    fc: %f, %f\n", calib->fc[0], calib->fc[1]);
     printf ("    cc: %f, %f\n", calib->cc[0], calib->cc[1]);
-    switch (calib->kc_len) {
+    switch (calib->kc_len) 
+    {
         case 3:
-            printf ("    kc: %f, %f, %f\n",
-                    calib->kc[0], calib->kc[1], calib->kc[2]);
+            printf ("    kc: %f, %f, %f\n", calib->kc[0], calib->kc[1], calib->kc[2]);
             break;
         case 4:
-            printf ("    kc: %f, %f, %f, %f\n",
-                    calib->kc[0], calib->kc[1], calib->kc[2], calib->kc[3]);
+            printf ("    kc: %f, %f, %f, %f\n", calib->kc[0], calib->kc[1], calib->kc[2], calib->kc[3]);
             break;
         default:
             printf ("unhandled case kc_len=%d\n", calib->kc_len);
             exit (EXIT_FAILURE);
     }
-    switch (calib->lc_len) {
+    switch (calib->lc_len) 
+    {
         case 0:
             break;
         case 2:
-            printf ("    lc: %f, %f\n",
-                    calib->lc[0], calib->lc[1]);
+            printf ("    lc: %f, %f\n", calib->lc[0], calib->lc[1]);
             break;
         default:
             printf ("unhandled case lc_len=%d\n", calib->lc_len);
@@ -513,8 +555,7 @@ load_camera_calib (getopt_t *gopt)
     return calib;
 }
 
-state_t *
-state_create (void)
+state_t * state_create (void)
 {
     state_t *state = calloc (1, sizeof(*state));
 
@@ -535,6 +576,10 @@ state_create (void)
     state->layer_map = zhash_create (sizeof(vx_display_t *), sizeof(vx_layer_t *), zhash_ptr_hash, zhash_ptr_equals);
     state->laser_points = zarray_create (sizeof(float[3]));
 
+    // Camera linear calibration matrices
+    state->H = gsl_matrix_calloc(3,4); // Camera extrinsics
+    state->K = gsl_matrix_calloc(3,3); // Camera intrinsics
+    
     // note, pg_sd() family of functions will trigger their own callback of my_param_changed(),
     // hence using a recursive mutex avoids deadlocking when using pg_sd() within my_param_changed()
     pthread_mutexattr_t attr;
@@ -545,8 +590,7 @@ state_create (void)
     return state;
 }
 
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
     // so that redirected stdout won't be insanely buffered.
     setvbuf (stdout, (char *) NULL, _IONBF, 0);
@@ -566,11 +610,13 @@ main (int argc, char *argv[])
     getopt_add_bool (state->gopt, '\0', "no-video", 0, "Disable video");
     getopt_add_string (state->gopt, '\0', "config", "", "Camera calibration config");
 
-    if (!getopt_parse (state->gopt, argc, argv, 0)) {
+    if (!getopt_parse (state->gopt, argc, argv, 0)) 
+    {
         getopt_do_usage (state->gopt);
         exit (EXIT_FAILURE);
     }
-    else if (getopt_get_bool (state->gopt,"help")) {
+    else if (getopt_get_bool (state->gopt,"help")) 
+    {
         getopt_do_usage (state->gopt);
         exit (EXIT_SUCCESS);
     }
@@ -578,25 +624,30 @@ main (int argc, char *argv[])
     verbose = getopt_get_bool (state->gopt, "verbose");
 
 
-    if (!getopt_get_bool (state->gopt, "no-video")) {
+    if (!getopt_get_bool (state->gopt, "no-video")) 
+    {
         // Set up the imagesource. This looks for a camera url specified on
         // the command line and, if none is found, enumerates a list of all
         // cameras imagesource can find and picks the first url it finds.
-        if (strncmp (getopt_get_string (state->gopt, "url"), "", 1)) {
+        if (strncmp (getopt_get_string (state->gopt, "url"), "", 1)) 
+	{
             state->url = strdup (getopt_get_string (state->gopt, "url"));
             printf ("URL: %s\n", state->url);
         }
-        else {
+        else 
+	{
             // No URL specified. Show all available and then use the first
             zarray_t *urls = image_source_enumerate ();
             printf ("Cameras:\n");
-            for (int i = 0; i < zarray_size (urls); i++) {
+            for (int i = 0; i < zarray_size (urls); i++) 
+	    {
                 char *url;
                 zarray_get (urls, i, &url);
                 printf ("  %3d: %s\n", i, url);
             }
 
-            if (0==zarray_size (urls)) {
+            if (0==zarray_size (urls)) 
+	    {
                 printf ("No cameras found.\n");
                 exit (EXIT_FAILURE);
             }
@@ -604,7 +655,8 @@ main (int argc, char *argv[])
         }
 
         state->isrc = image_source_open (state->url);
-        if (state->isrc == NULL) {
+        if (state->isrc == NULL) 
+	{
             printf ("Unable to open device %s\n", state->url);
             exit (EXIT_FAILURE);
         }
@@ -613,7 +665,8 @@ main (int argc, char *argv[])
         if (isrc->start (isrc))
             exit (EXIT_FAILURE);
 
-        if (getopt_was_specified (state->gopt, "config")) {
+        if (getopt_was_specified (state->gopt, "config"))
+	{
             state->calib = load_camera_calib (state->gopt);
             if (!state->calib)
                 exit (EXIT_FAILURE);

@@ -16,8 +16,8 @@
 
 #include "xyt.h"
 
-#define ALPHA_STRING          "1.0"  // longitudinal covariance scaling factor
-#define BETA_STRING           "1.0"  // lateral side-slip covariance scaling factor
+#define ALPHA_STRING          "0.000546"  // longitudinal covariance scaling factor
+#define BETA_STRING           "0.000517"  // lateral side-slip covariance scaling factor
 #define GYRO_RMS_STRING       "1.0"    // [deg/s]
 
 typedef struct state state_t;

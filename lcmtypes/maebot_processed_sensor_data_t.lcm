@@ -4,4 +4,5 @@ struct maebot_processed_sensor_data_t {
     //int16_t accel[3]; //TODO
     double gyro[3];
     double gyro_int[3];
+    int64_t gyroBias[3];
 }

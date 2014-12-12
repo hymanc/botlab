@@ -78,7 +78,7 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf,
     double dl = l_diff * state->meters_per_tick;
     double dr = r_diff * state->meters_per_tick;
     double ds = 0;
-    printf("dl:%.3f; dr:%.3f\n",dl,dr);
+    //printf("dl:%.3f; dr:%.3f\n",dl,dr);
     // Current pose
     gsl_vector *p = gsl_vector_alloc(3);
     memcpy(p->data, state->xyt, 3*sizeof(double));
@@ -193,14 +193,14 @@ int main (int argc, char *argv[])
     state->beta = getopt_get_double (state->gopt, "beta");
     state->gyro_rms = getopt_get_double (state->gopt, "gyro-rms") * DTOR;
 
-    printf("Alpha:%.3f ; Beta:%.3f\n", state->alpha, state->beta);
+    //printf("Alpha:%.3f ; Beta:%.3f\n", state->alpha, state->beta);
      
     // initialize LCM
     state->lcm = lcm_create (NULL);
     maebot_motor_feedback_t_subscribe (state->lcm, state->feedback_channel, motor_feedback_handler, state);
     maebot_sensor_data_t_subscribe (state->lcm, state->sensor_channel, sensor_data_handler, state);
 
-    printf ("ticks per meter: %f\n", 1.0/state->meters_per_tick);
+    //printf ("ticks per meter: %f\n", 1.0/state->meters_per_tick);
 
     while (1)
     {

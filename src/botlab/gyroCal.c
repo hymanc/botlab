@@ -93,6 +93,7 @@ void initState(maebot_shared_state_t *state) {
         state->gyroBias[i] = 0;
         state->processedSensorData.gyro[i] = 0;
         state->processedSensorData.gyro_int[i] = 0;
+        state->processedSensorData.gyroBias[i] = 0;
     }
 
     state->motorFeedback.utime               = 0;
@@ -310,8 +311,8 @@ int main (int argc, char *argv[]) {
     //pthread_t print_thread;
     //pthread_create(&print_thread, NULL, print_handler, &sharedState);
 
-    pthread_t plot_thread;  // data for plots and graphs
-    pthread_create(&plot_thread, NULL, plot_handler, &sharedState);
+    //pthread_t plot_thread;  // data for plots and graphs
+    //pthread_create(&plot_thread, NULL, plot_handler, &sharedState);
 
     for(;;) {
 
@@ -383,9 +384,11 @@ int main (int argc, char *argv[]) {
         }
 
         pthread_mutex_lock(  &sensor_data_mutex);
-        sharedState.gyroBias[0] = bias[0];
-        sharedState.gyroBias[1] = bias[1];
-        sharedState.gyroBias[2] = bias[2];
+
+        for(int j=0; j<3; j++) {
+            sharedState.processedSensorData.gyroBias[j] = bias[j];
+            sharedState.gyroBias[j] = bias[j];
+        }
         sharedState.valid++;
         pthread_mutex_unlock(&sensor_data_mutex);
 

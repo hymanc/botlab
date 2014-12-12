@@ -39,8 +39,8 @@ static void sensor_data_handler(const lcm_recv_buf_t *rbuf,
     pthread_mutex_lock(  &sensor_data_mutex);
     state->sensorData = *msg;
     state->processedSensorData.utime_sama5 = msg->utime_sama5;
-    for(int i=0; i<3; i++) state->processedSensorData.gyro[i] = 
-        msg->gyro[i] - state->processedSensorData.gyroBias[i];
+    //for(int i=0; i<3; i++) state->processedSensorData.gyro[i] = 
+    //    msg->gyro[i] - state->processedSensorData.gyroBias[i];
     pthread_mutex_unlock(&sensor_data_mutex);
 }
 
@@ -58,7 +58,7 @@ void initState(maebot_shared_state_t *state) {
     state->running                         = 0;
     state->processedSensorData.utime_sama5 = 0;
     for(int i=0; i<3; i++) {
-        state->processedSensorData.gyroBias[i] = 0;
+        //state->processedSensorData.gyroBias[i] = 0;
         state->processedSensorData.gyro[i]     = 0;
     }
     return;
@@ -194,7 +194,7 @@ int main (int argc, char *argv[]) {
     int64_t startTime = sharedState.sensorData.utime_sama5;
     for(int i=0; i<3; i++) {
         startIntegral[i] = sharedState.sensorData.gyro_int[i];
-        startBias[i]     = sharedState.processedSensorData.gyroBias[i];
+        //startBias[i]     = sharedState.processedSensorData.gyroBias[i];
     }
     pthread_mutex_unlock(&sensor_data_mutex);
 
@@ -207,7 +207,7 @@ int main (int argc, char *argv[]) {
         int64_t stopTime = sharedState.sensorData.utime_sama5;
         for(int i=0; i<3; i++) {
             stopIntegral[i] = sharedState.sensorData.gyro_int[i];
-            stopBias[i]     = sharedState.processedSensorData.gyroBias[i];
+            //stopBias[i]     = sharedState.processedSensorData.gyroBias[i];
         }
         pthread_mutex_unlock(&sensor_data_mutex);
 

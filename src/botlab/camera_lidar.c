@@ -317,7 +317,10 @@ static void * render_thread (void *user)
                             if (hue > depth)
                                 hue = depth;
                             uint32_t color = hsv2rgb(hue, 1.0, 1.0);
-                            // TODO: Add LIDAR data to buffer
+			    printf("LIDAR Point at X:%d, Y:%d\n", u_d, v_d);
+			    float points[2] = {u_d, v_d};
+                            vx_buffer_add_back(vb_image, vxo_chain(vxo_mat_translate2 (u_d, v_d), vxo_points( vx_resc_copyf (points, 2), 1, vxo_points_style(vx_red, 2.0f))));
+			    
 			    
 			    //vx_buffer_add_back();
                         }
@@ -638,7 +641,7 @@ int main (int argc, char *argv[])
     getopt_add_int (state->gopt, 'd', "decimate", "1", "Decimate image by this amount before showing in vx");
     getopt_add_string (state->gopt, '\0', "url", "", "Camera URL");
     getopt_add_bool (state->gopt, '\0', "no-video", 0, "Disable video");
-    getopt_add_string (state->gopt, '\0', "config", "", "Camera calibration config");
+    getopt_add_string (state->gopt, '\0', "config", "../config/camera.config", "Camera calibration config");
 
     if (!getopt_parse (state->gopt, argc, argv, 0)) 
     {
@@ -702,7 +705,10 @@ int main (int argc, char *argv[])
                 exit (EXIT_FAILURE);
         }
         else
-            printf ("No Calibration Specified\n");
+	{
+            printf ("No Calibration Specified, using default\n");
+	    state->calib = load_camera_calib(state->gopt);
+	}
     }
 
     // Setup Vx remote display

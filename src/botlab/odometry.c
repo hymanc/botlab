@@ -20,6 +20,9 @@
 #define BETA_STRING           "0.000517"  // lateral side-slip covariance scaling factor
 #define GYRO_RMS_STRING       "1.0"    // [deg/s]
 
+//#define FUDGE 1.061
+#define FUDGE 1.0
+
 typedef struct state state_t;
 struct state {
     getopt_t *gopt;
@@ -165,7 +168,7 @@ int main (int argc, char *argv[])
 
     state->baseline = 0.08; // 8cm baseline
     
-    state->meters_per_tick = 2.0943951E-4; // Meters per encoder tick
+    state->meters_per_tick = FUDGE * 2.0943951E-4; // Meters per encoder tick
     
     state->gyro_z_offset = 0; // TODO: Gyro offset (Make it a gopt string?)
     

@@ -306,6 +306,21 @@ static void * command_thread (void *data)
     return NULL;
 }
 
+// TODO: don't add new poses if they're not far enough away or theta isn't different enough
+
+/*
+ * @brief absolute value fn for int64_t
+ */
+ int64_t abs_64(int64_t A)
+ {
+	if ( A < 0 )
+	{
+		A *= -1;
+	}
+
+	return A;
+ }
+
 // This thread continously renders updates from the robot
 /**
  * @brief Rendering Thread
@@ -317,60 +332,62 @@ static void * render_thread (void *data)
     state_t *state = data;
     float ellipse_color[4] = {0.0, 0.0, 1.0, 0.5};
     // Grid
-    {
-        vx_buffer_t *vb = vx_world_get_buffer (state->vw, "grid");
-        vx_buffer_set_draw_order (vb, 0);
-        vx_buffer_add_back (vb,
+        vx_buffer_t *vbgrid = vx_world_get_buffer (state->vw, "grid");
+        vx_buffer_set_draw_order (vbgrid, 0);
+        vx_buffer_add_back (vbgrid,
                             vxo_chain (vxo_mat_scale (VXO_GRID_SIZE),
                                        vxo_grid ()));
-        vx_buffer_swap (vb);
-    }
+        vx_buffer_swap (vbgrid);
 
     // Axes
-    {
-        vx_buffer_t *vb = vx_world_get_buffer (state->vw, "axes");
-        vx_buffer_set_draw_order (vb, 0);
-        vx_buffer_add_back (vb,
+        vx_buffer_t *vbaxes = vx_world_get_buffer (state->vw, "axes");
+        vx_buffer_set_draw_order (vbaxes, 0);
+        vx_buffer_add_back (vbaxes,
                             vxo_chain (vxo_mat_scale3 (0.10, 0.10, 0.0),
                                        vxo_mat_translate3 (0.0, 0.0, -0.005),
                                        vxo_axes_styled (vxo_mesh_style (vx_red),
                                                         vxo_mesh_style (vx_green),
                                                         vxo_mesh_style (vx_black))));
-        vx_buffer_swap (vb);
-    }
+        vx_buffer_swap (vbaxes);
 
     const int fps = 30;
     while (state->running) 
     {
         pthread_mutex_lock (&state->mutex);
-        {
+
             // Goal
             if (state->have_goal) 
-	    {
+	    	{
                 float color[4] = {0.0, 1.0, 0.0, 0.5};
-                vx_buffer_t *vb = vx_world_get_buffer (state->vw, "goal");
-                vx_buffer_set_draw_order (vb, -1);
-                vx_buffer_add_back (vb,
+                vx_buffer_t *vbgoal = vx_world_get_buffer (state->vw, "goal");
+                vx_buffer_set_draw_order (vbgoal, -1);
+                vx_buffer_add_back (vbgoal,
                                     vxo_chain (vxo_mat_translate2 (state->goal[0], state->goal[1]),
                                                vxo_mat_scale (GOAL_RADIUS),
                                                vxo_circle (vxo_mesh_style (color))));
-                vx_buffer_swap (vb);
+                vx_buffer_swap (vbgoal);
             }
 
             // Robot
-            {
-                vx_buffer_t *vb = vx_world_get_buffer (state->vw, "robot");
-                vx_buffer_set_draw_order (vb, 1);
+
+				vx_object_t *robot_scale = NULL;
+                vx_buffer_t *vbrobot = vx_world_get_buffer (state->vw, "robot");
+                vx_buffer_set_draw_order (vbrobot, 1);
                 enum {ROBOT_TYPE_TRIANGLE, ROBOT_TYPE_DALEK};
                 vx_object_t *robot = NULL;
                 switch (ROBOT_TYPE_DALEK) 
-		{
+				{
                     case ROBOT_TYPE_DALEK: 
-		    {
-                       // float line[6] = {0.0, 0.0, 0.151, 0.104, 0.0, 0.151};
-                        robot = vxo_chain (vxo_mat_scale3 (0.104, 0.104, 0.151),
-                                           vxo_mat_translate3 (0.0, 0.0, 0.5),
-                                           vxo_cylinder (vxo_mesh_style (vx_blue)));
+		    		{
+                        float nose[6] = {0.0, 0.0, 0.151, 0.104, 0.0, 0.151};
+                        robot = vxo_chain (	vxo_lines (	vx_resc_copyf (nose, 6),
+														2,
+														GL_LINES,
+														vxo_lines_style (vx_red, 3.0f)),
+											vxo_mat_scale3 (0.104, 0.104, 0.151),
+                                           	vxo_mat_translate3 (0.0, 0.0, 0.5),
+                                           	vxo_cylinder (vxo_mesh_style (vx_blue)));
+						robot_scale = vxo_chain ( vxo_mat_scale3 (0.104, 0.104, 0.151));
                         break;
                     }
                     case ROBOT_TYPE_TRIANGLE:
@@ -378,6 +395,8 @@ static void * render_thread (void *data)
                         robot = vxo_chain (vxo_mat_scale (0.104),
                                            vxo_mat_scale3 (1, 0.5, 1),
                                            vxo_triangle (vxo_mesh_style (vx_blue)));
+						robot_scale = vxo_chain (vxo_mat_scale (0.104),
+												 vxo_mat_scale3 (1, 0.5, 1));
                         break;
                 }
 
@@ -415,59 +434,54 @@ static void * render_thread (void *data)
 					free(last_pose);
 
                 if (state->pose)
-		{
-                    vx_buffer_add_back (vb, vxo_chain (vxo_lines (vx_resc_copyf (line, length),
+				{
+                    vx_buffer_add_back (vbrobot, vxo_chain (vxo_lines (vx_resc_copyf (line, length),
                                                       length/3,
                                                       GL_LINES,
                                                       vxo_lines_style (vx_red, 3.0f))));
-					vx_buffer_add_back (vb, vxo_mat_from_xyt (state->pose->xyt));
-		    		/*vx_buffer_add_back (vb, vxo_chain (vxo_mat_rotate_z (state->pose->xyt[2])),
+					vx_buffer_add_back (vbrobot, vxo_mat_from_xyt (state->pose->xyt));
+		    		/*vx_buffer_add_back (vbrobot, vxo_chain (vxo_mat_rotate_z (state->pose->xyt[2])),
 													   vxo_mat_translate3 (state->pose->xyt[0],
 																		   state->pose->xyt[1],
 																		   0.0));*/
-					vx_buffer_add_back (vb, robot);
-					/*vx_buffer_add_back (vb, vxo_chain (vxo_mat_scale3 (0.104, 0.104, 0.151),
+					vx_buffer_add_back (vbrobot, robot);
+					/*vx_buffer_add_back (vbrobot, vxo_chain (vxo_mat_scale3 (0.104, 0.104, 0.151),
                                            	vxo_mat_translate3 (0.0, 0.0, 0.5),
                                            	vxo_cylinder (vxo_mesh_style (vx_blue))));*/
-					vx_buffer_swap(vb);
-		printf("x: %lf, y: %lf, t: %lf\n", state->pose->xyt[0], state->pose->xyt[1], state->pose->xyt[2]);
-		}
+					vx_buffer_swap(vbrobot);
+					printf("x: %lf, y: %lf, t: %lf\n", state->pose->xyt[0], state->pose->xyt[1], state->pose->xyt[2]);
+				}
                 //else
-                    //vx_buffer_add_back(vb, robot);
-               // vx_buffer_swap(vb);
-            }
+                    //vx_buffer_add_back(vbrobot, robot);
+               // vx_buffer_swap(vbrobot);
 
 
             // TODO: Robot Covariance
-            {
-		vx_buffer_t *vb = vx_world_get_buffer(state->vw, "Ellipse");
-		vx_buffer_set_draw_order(vb, 1);
+		vx_buffer_t *vbellipse = vx_world_get_buffer(state->vw, "Ellipse");
+		vx_buffer_set_draw_order(vbellipse, 1);
 		vx_object_t *ellipse = vxo_chain(vxo_mat_scale3 (5, 2, 1),
 						 vxo_circle (vxo_mesh_style (ellipse_color)));
 		if(state->pose)
 		{
-		    vx_buffer_add_back(vb, vxo_chain(vxo_mat_from_xyt(state->pose->xyt), ellipse));
-		    vx_buffer_swap(vb);
+		    vx_buffer_add_back(vbellipse, vxo_chain(vxo_mat_from_xyt(state->pose->xyt), ellipse));
+		    vx_buffer_swap(vbellipse);
 		}
 		// HINT: vxo_circle is what you want
-	    }
             // Current Lidar Scan
             // HINT: vxo_points is what you want
-        }
 
 		// Lidar
-		{
 			double xy[2] = {0.0,0.0};
-			uint64_t diff = INT_MAX;
+			int64_t diff = INT_MAX;
 			// find the pose closest to the lidar acquisition
-			int i, pose_idx = zarray_size(state->past_poses) - 1;
+			int k, pose_idx = zarray_size(state->past_poses) - 1;
 			pose_xyt_t* cur_p = malloc(sizeof(pose_xyt_t));
 			printf("%d stored poses\n", zarray_size(state->past_poses));
-			for (i = zarray_size(state->past_poses) - 1; i >= 0; i--)
+			for (k = zarray_size(state->past_poses) - 1; k >= 0; k--)
 			{
-				zarray_get(state->past_poses, i, cur_p);
-				int64_t d = cur_p->utime - state->lidar->utime;
-				if ( d < diff && d >= 0 )
+				zarray_get(state->past_poses, k, cur_p);
+				int64_t d = abs_64(state->lidar->utime - cur_p->utime);
+				if ( d < diff )
 				{
 					diff = d;
 					pose_idx = i;
@@ -477,39 +491,44 @@ static void * render_thread (void *data)
 					break;
 				}
 			}
+					
+			int num_points = state->lidar->nranges;
+			float points[2*num_points];
+
 			if (pose_idx >= 0)
 			{
 				printf("using pose_idx: %d\n", pose_idx);
 				zarray_get( state->past_poses, pose_idx, cur_p);
 				xy[0] = cur_p->xyt[0];
 				xy[1] = cur_p->xyt[1];
+					
+				int l, m=0;
+				printf("number of lidar points: %d\n", num_points);
+				for(l = 0; l < num_points; l++)
+				{
+					// find theta base on theta relative to robot + theta of that pose
+					double theta = state->lidar->thetas[l] + cur_p->xyt[2];
+					points[m] = state->lidar->ranges[l] * cos(theta);
+					printf("lidar x: %lf, ", points[m]);
+					m++;
+					points[m] = state->lidar->ranges[l] * sin(theta);
+					printf("lidar y: %lf\n", points[m]);
+					m++;
+				}
 			}
 
-			
-			int num_points = state->lidar->nranges;
-			float points[2*num_points];
-
-			int j, k=0;
-			for(j = 0; j < num_points; j++)
-			{
-				points[k] = state->lidar->ranges[j] * cos( state->lidar->thetas[j]);
-				k++;
-				points[k] = state->lidar->ranges[j] * sin( state->lidar->thetas[j]);
-				k++;
-			}
-
-			vx_buffer_t *vb = vx_world_get_buffer (state->vw, "lidar");
-			vx_buffer_set_draw_order (vb, 1);
-			vx_buffer_add_back (vb,
+			vx_buffer_t *vblidar = vx_world_get_buffer (state->vw, "lidar");
+			vx_buffer_set_draw_order (vblidar, 1);
+			vx_buffer_add_back (vblidar,
 							vxo_chain (	vxo_points( vx_resc_copyf (points, 2*num_points),
 													num_points, 
 													vxo_points_style (vx_magenta, 3.0f))));
-			vx_buffer_add_back (vb,
+			vx_buffer_add_back (vblidar,
 							vxo_chain (	vxo_mat_scale2(0.1,0.1),
 										vxo_mat_translate2 (xy[0], xy[1]),
 									   	vxo_circle (vxo_mesh_style (vx_magenta))));
-			vx_buffer_swap (vb);
-		}
+			vx_buffer_add_back (vblidar, robot_scale);
+			vx_buffer_swap (vblidar);
 
         pthread_mutex_unlock (&state->mutex);
         usleep (1000000/fps);

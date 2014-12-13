@@ -255,8 +255,6 @@ static void * render_thread (void *user)
                     const calib_t *calib = state->calib;
 		    
 		    gsl_matrix *cmat = state->cal_matrix;
-		    //float lpts[2*zarray_size(state->laser_points)];
-		    //int laserImgCount;
                     for (int i=0; i < zarray_size (state->laser_points); i++) 
 		    {
                         // laser point in camera reference frame
@@ -266,8 +264,8 @@ static void * render_thread (void *user)
     
 			gsl_vector *xyz_world = gsl_vector_alloc(4);
 			gsl_vector_set(xyz_world, 0, X);
-			gsl_vector_set(xyz_world, 0, Y);
-			gsl_vector_set(xyz_world, 0, Z);
+			gsl_vector_set(xyz_world, 1, Y);
+			gsl_vector_set(xyz_world, 2, Z);
 			gsl_vector_set(xyz_world, 3, 1);
 			
 			gsl_vector *xy_n = gslu_blas_mv_alloc(cmat, xyz_world); // Linear undistorted image coordinates
@@ -296,8 +294,10 @@ static void * render_thread (void *user)
 			    // Compute Tangential Distortion Vector
 			    double dx0 = 2*l0*x*y + l1*(r2 + 2*pow(x,2));
 			    double dx1 = l1*(r2 + 2*pow(y,2)) + 2*l1*x*y;
-			    u_d = round(rd * x + dx0);
-			    v_d = round(rd * y + dx1);
+			    //u_d = round(rd * x + dx0);
+			    //v_d = round(rd * y + dx1);
+			    u_d = round((x-dx0)/rd);
+			    v_d = round((y-dx1)/rd);
 			}
                         else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
 			{
@@ -320,9 +320,6 @@ static void * render_thread (void *user)
 			    printf("LIDAR Point at X:%d, Y:%d\n", u_d, v_d);
 			    float points[2] = {u_d, v_d};
                             vx_buffer_add_back(vb_image, vxo_chain(vxo_mat_translate2 (u_d, v_d), vxo_points( vx_resc_copyf (points, 2), 1, vxo_points_style(vx_red, 2.0f))));
-			    
-			    
-			    //vx_buffer_add_back();
                         }
                         
                         gslu_vector_free(xyz_world);

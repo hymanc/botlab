@@ -59,6 +59,11 @@ typedef struct ellipse ellipse_t;
 struct ellipse
 {
 	// Put whatever needs to be stored here
+	int last_poop_idx;
+	//Cody, you can change these if you want different values...
+	double x;
+	double y;
+	double t;
 };
 
 typedef struct state state_t;
@@ -380,7 +385,6 @@ static void * render_thread (void *data)
 
             // Robot
 
-				vx_object_t *robot_scale = NULL;
                 vx_buffer_t *vbrobot = vx_world_get_buffer (state->vw, "robot");
                 vx_buffer_set_draw_order (vbrobot, 1);
                 enum {ROBOT_TYPE_TRIANGLE, ROBOT_TYPE_DALEK};
@@ -397,7 +401,6 @@ static void * render_thread (void *data)
 											vxo_mat_scale3 (0.104, 0.104, 0.151),
                                            	vxo_mat_translate3 (0.0, 0.0, 0.5),
                                            	vxo_cylinder (vxo_mesh_style (vx_blue)));
-						robot_scale = vxo_chain ( vxo_mat_scale3 (0.104, 0.104, 0.151), vxo_mat_translate3 (0.0, 0.0, 0.5));
                         break;
                     }
                     case ROBOT_TYPE_TRIANGLE:
@@ -405,8 +408,6 @@ static void * render_thread (void *data)
                         robot = vxo_chain (vxo_mat_scale (0.104),
                                            vxo_mat_scale3 (1, 0.5, 1),
                                            vxo_triangle (vxo_mesh_style (vx_blue)));
-						robot_scale = vxo_chain (vxo_mat_scale (0.104),
-												 vxo_mat_scale3 (1, 0.5, 1));
                         break;
                 }
 
@@ -425,10 +426,8 @@ static void * render_thread (void *data)
 					{
 						zarray_get(state->past_poses, i, last_pose);
 						line[j] = (last_pose->xyt)[0]; // next x
-						printf("line: x: %lf, ", line[j]);
 						j++;
 						line[j] = (last_pose->xyt)[1]; // next y
-						printf("y: %lf\n", line[j]);
 						j++;
 						line[j] = 0.0; // all z's are 0
 						j++;
@@ -726,6 +725,7 @@ state_t *state_create (void)
 
 	// ellipse
 	state->ellipse = calloc(1, sizeof(ellipse_t));
+	state->ellipse->last_poop_idx = 0;
 	state->past_ellipses = zarray_create(sizeof(ellipse_t));
 
 	// lidar
@@ -767,6 +767,37 @@ void state_destroy(state_t *state)
 	//TODO: Everything else...
 }
 
+/*
+ * @brief Computes the total distance (cm) travelled between two pose indices
+ *			Return the distance if the indices are valid
+ *			Else returns -1
+ * @param state is the current state struct
+ * @param idx_1 is the index of the start pose
+ * @param idx_2 is the index of the end pose
+ */
+ double compute_distance_travelled(state_t *state, int idx_1, int idx_2)
+ {
+	if ((idx_2 < idx_1) || (idx_1 < 0) || (idx_2 > zarray_size(state->past_poses) - 1))
+	{
+		return -1;
+	}
+
+	pose_xyt_t* cur_pose = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
+	pose_xyt_t* next_pose = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
+	zarray_get(state->past_poses, idx_1, cur_pose);
+	double dist = 0;
+	int i;
+	for(i = idx_1 + 1; i < zarray_size(state->past_poses); i++)
+	{
+		zarray_get(state->past_poses, i, next_pose);
+		double x = next_pose->xyt[0] - cur_pose->xyt[0];
+		double y = next_pose->xyt[1] - cur_pose->xyt[1];
+		dist += sqrt(pow(x, 2) + pow(y, 2));
+	}
+
+	return (dist / 100);
+ }
+
 /**
  * @brief Computes the uncertainty ellipse parameters for the given state
  * @param state Current state struct
@@ -788,6 +819,28 @@ void compute_sigma_ellipse(state_t *state)
 		// Should probably have a field that stores the last pose 
 			// of the last ellipse that was stored or its index
 			// in state->past poses or something like that
+
+	ellipse_t* cur_ellipse = malloc(sizeof(ellipse_t));
+	// Fill in it's values
+	// Set state's ellipse equal to its values
+	cur_ellipse->last_poop_idx = state->ellipse->last_poop_idx;
+	//cur_ellipse->x = 
+	//cur_ellipse->y = 
+	//cur_ellipse->t = 
+	*(state->ellipse) = *(cur_ellipse);
+
+	// Add this ellipse to the zarray of ellipses if this pose is >= 10cm from the last poop
+	double dist = compute_distance_travelled
+			(state, state->ellipse->last_poop_idx, zarray_size(state->past_poses) - 1);
+	if (dist >= 10)
+	{
+		zarray_add(state->past_ellipses, cur_ellipse);
+		state->ellipse->last_poop_idx = zarray_size(state->past_poses) - 1;
+	}
+	else if (dist == -1)
+	{
+		printf ("Bad pose index comparison in compute_sigma_ellipse\n");
+	}
 
 	// TODO: 
 	gslu_matrix_free(sig);

@@ -590,6 +590,7 @@ static void pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel, c
 	printf("X:%.3f, Y:%.3f, T:%.3f\n",msg->xyt[0], msg->xyt[1], msg->xyt[2]);
     }
     pthread_mutex_unlock (&state->mutex);
+    compute_sigma_ellipse(state);
 }
 
 /**
@@ -619,7 +620,7 @@ state_t *state_create (void)
     state->lcm = lcm_create (NULL);
 
 	// goal
-    state->have_goal = false;
+	state->have_goal = false;
 
 	// pose
 	state->pose = calloc(1, sizeof(pose_xyt_t));
@@ -650,7 +651,7 @@ state_t *state_create (void)
     return state;
 }
 
-/*
+/**
  * @brief Free memory used by state
  * @param state is the current state struct
  */

@@ -55,6 +55,12 @@
 #define dmax(A,B) A < B ? B : A
 #define dmin(A,B) A < B ? A : B
 
+typedef struct ellipse ellipse_t;
+struct ellipse
+{
+	// Put whatever needs to be stored here
+};
+
 typedef struct state state_t;
 
 struct state 
@@ -72,6 +78,10 @@ struct state
 
 	// lidar
 	rplidar_laser_t *lidar;
+
+	// covariance ellipse
+	ellipse_t* ellipse;
+	zarray_t* past_ellipses;
 
     pthread_t command_thread;
     maebot_diff_drive_t cmd;
@@ -714,6 +724,10 @@ state_t *state_create (void)
 	state->pose = calloc(1, sizeof(pose_xyt_t));
 	state->past_poses = zarray_create(sizeof(pose_xyt_t));
 
+	// ellipse
+	state->ellipse = calloc(1, sizeof(ellipse_t));
+	state->past_ellipses = zarray_create(sizeof(ellipse_t));
+
 	// lidar
 	state->lidar = calloc(1, sizeof(rplidar_laser_t));
 
@@ -746,8 +760,10 @@ state_t *state_create (void)
 void state_destroy(state_t *state)
 {
 	zarray_destroy(state->past_poses);
+	zarray_destroy(state->past_ellipses);
 	free(state->pose);
 	free(state->lidar);
+	free(state->ellipse);
 	//TODO: Everything else...
 }
 
@@ -765,7 +781,14 @@ void compute_sigma_ellipse(state_t *state)
 	printf("Eigenstuff\n");
 	gslu_vector_printf(sig_eigs->D,"Evals");
 	gslu_matrix_printf(sig_eigs->V,"Evecs");
-	
+
+	// Store the values in state->ellipse
+	// If current pose is 10cm away from last time stored, 
+		// add this ellipse to the zarray state->past_ellipses
+		// Should probably have a field that stores the last pose 
+			// of the last ellipse that was stored or its index
+			// in state->past poses or something like that
+
 	// TODO: 
 	gslu_matrix_free(sig);
     pthread_mutex_unlock(&state->mutex);

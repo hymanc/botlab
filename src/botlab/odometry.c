@@ -50,6 +50,7 @@ struct state {
     double baseline;
 
     double xyt[3]; // 3-dof pose
+    double gyro_theta;
     double Sigma[3*3];
     
     int startup_flag;
@@ -77,7 +78,7 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf,
 	state->previous_left_encoder = msg->encoder_left_ticks;
 	state->previous_right_encoder = msg->encoder_right_ticks;
     }
-    // Handle encoder wrap-around, probably not necessary?
+
     double dl = l_diff * state->meters_per_tick;
     double dr = r_diff * state->meters_per_tick;
     double ds = 0;
@@ -145,6 +146,9 @@ static void motor_feedback_handler (const lcm_recv_buf_t *rbuf,
     gslu_vector_free(pp);
 }
 
+/**
+ * 
+ */
 static void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
 {
     state_t *state = user;

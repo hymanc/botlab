@@ -59,11 +59,12 @@ typedef struct ellipse ellipse_t;
 struct ellipse
 {
 	// Put whatever needs to be stored here
-	int last_poop_idx;
-	//Cody, you can change these if you want different values...
 	double x;
 	double y;
 	double t;
+	double axis1;  // 
+	double axis2;  // 
+	double tcovar; // Theta covariance
 };
 
 typedef struct state state_t;
@@ -77,23 +78,24 @@ struct state
     int fidx;
     lcm_t *lcm;
 
-	// pose
-	pose_xyt_t *pose;
-	zarray_t* past_poses;
+    // pose
+    pose_xyt_t *pose;
+    zarray_t* past_poses;
 
-	// lidar
-	rplidar_laser_t *lidar;
+    // lidar
+    rplidar_laser_t *lidar;
 
-	// covariance ellipse
-	ellipse_t* ellipse;
-	zarray_t* past_ellipses;
-
+    // covariance ellipse
+    ellipse_t* ellipse;
+    zarray_t* past_ellipses;
+    uint32_t last_poop_idx;
+	
     pthread_t command_thread;
     maebot_diff_drive_t cmd;
     bool manual_control;
 
     pthread_t render_thread;
-    bool   have_goal;
+    bool have_goal;
     double goal[3];
 
 	// vx
@@ -105,6 +107,11 @@ struct state
 	// mutex
     pthread_mutex_t mutex;
 };
+
+
+void compute_sigma_ellipse(state_t *state);
+
+
 
 /**
  * @brief Display stop handler
@@ -466,21 +473,22 @@ static void * render_thread (void *data)
                     //vx_buffer_add_back(vbrobot, robot);
                // vx_buffer_swap(vbrobot);
 
+               
+		compute_sigma_ellipse(state);
 
-            // TODO: Robot Covariance
+		// TODO: Robot Covariance Ellipse
 		vx_buffer_t *vbellipse = vx_world_get_buffer(state->vw, "Ellipse");
 		vx_buffer_set_draw_order(vbellipse, 1);
-		vx_object_t *ellipse = vxo_chain(vxo_mat_scale3 (5, 2, 1),
+
+		vx_object_t *ellipse = vxo_chain(vxo_mat_scale3 (5, 2, 1), //
 						 vxo_circle (vxo_mesh_style (ellipse_color)));
 		if(state->pose)
 		{
 		    vx_buffer_add_back(vbellipse, vxo_chain(vxo_mat_from_xyt(state->pose->xyt), ellipse));
 		    vx_buffer_swap(vbellipse);
 		}
-		// HINT: vxo_circle is what you want
-            // Current Lidar Scan
-            // HINT: vxo_points is what you want
-
+		
+		// Current Lidar Scan
 		// Lidar
 		int num_points = state->lidar->nranges;
 		if (num_points)
@@ -688,7 +696,6 @@ static void pose_xyt_handler (const lcm_recv_buf_t *rbuf, const char *channel, c
 	printf("X:%.3f, Y:%.3f, T:%.3f\n",msg->xyt[0], msg->xyt[1], msg->xyt[2]);
     }
     pthread_mutex_unlock (&state->mutex);
-    compute_sigma_ellipse(state);
 }
 
 /**
@@ -726,7 +733,7 @@ state_t *state_create (void)
 
 	// ellipse
 	state->ellipse = calloc(1, sizeof(ellipse_t));
-	state->ellipse->last_poop_idx = 0;
+	state->last_poop_idx = 0;
 	state->past_ellipses = zarray_create(sizeof(ellipse_t));
 
 	// lidar
@@ -769,7 +776,7 @@ void state_destroy(state_t *state)
 }
 
 /*
- * @brief Computes the total distance (cm) travelled between two pose indices
+ * @brief Computes the total distance (m) travelled between two pose indices
  *			Return the distance if the indices are valid
  *			Else returns -1
  * @param state is the current state struct
@@ -796,7 +803,7 @@ void state_destroy(state_t *state)
 		dist += sqrt(pow(x, 2) + pow(y, 2));
 	}
 
-	return (dist / 100);
+	return (dist);
  }
 
 /**
@@ -806,6 +813,8 @@ void state_destroy(state_t *state)
 void compute_sigma_ellipse(state_t *state)
 {
     pthread_mutex_lock(&state->mutex);
+    if(state->pose->Sigma != NULL)
+    {
 	gsl_matrix *sig = gsl_matrix_alloc(3,3);// Reconstruct covariance matrix
 	memcpy(sig->data, state->pose->Sigma, 9*sizeof(double));
 	gslu_eigen *sig_eigs = gslu_eigen_decomp_alloc (sig);// Compute Eigenvalues/vectors of covariance
@@ -813,7 +822,14 @@ void compute_sigma_ellipse(state_t *state)
 	printf("Eigenstuff\n");
 	gslu_vector_printf(sig_eigs->D,"Evals");
 	gslu_matrix_printf(sig_eigs->V,"Evecs");
-
+	
+	gsl_vector *u1 = gsl_vector_calloc(2);
+	gsl_vector_set(u1, 0, gsl_matrix_get(sig_eigs->V, 0, 1));
+	gsl_vector_set(u1, 1, gsl_matrix_get(sig_eigs->V, 1, 1));
+	gsl_vector *u2 = gsl_vector_calloc(2);
+	gsl_vector_set(u2, 0, gsl_matrix_get(sig_eigs->V, 0, 2));
+	gsl_vector_set(u2, 1, gsl_matrix_get(sig_eigs->V, 1, 2));
+	
 	// Store the values in state->ellipse
 	// If current pose is 10cm away from last time stored, 
 		// add this ellipse to the zarray state->past_ellipses
@@ -824,19 +840,22 @@ void compute_sigma_ellipse(state_t *state)
 	ellipse_t* cur_ellipse = malloc(sizeof(ellipse_t));
 	// Fill in it's values
 	// Set state's ellipse equal to its values
-	cur_ellipse->last_poop_idx = state->ellipse->last_poop_idx;
-	//cur_ellipse->x = 
-	//cur_ellipse->y = 
-	//cur_ellipse->t = 
+	
+	cur_ellipse->x = state->pose->xyt[0];
+	cur_ellipse->y = state->pose->xyt[1];
+	cur_ellipse->t = atan2(gsl_vector_get(u2, 0), gsl_vector_get(u2, 1));
+	cur_ellipse->axis1 = 2 * sqrt(gsl_vector_get(sig_eigs->D, 1));
+	cur_ellipse->axis2 = 2 * sqrt(gsl_vector_get(sig_eigs->D, 2));
+	cur_ellipse->tcovar = sqrt(gsl_vector_get(sig_eigs->D, 0));
+
 	*(state->ellipse) = *(cur_ellipse);
 
 	// Add this ellipse to the zarray of ellipses if this pose is >= 10cm from the last poop
-	double dist = compute_distance_travelled
-			(state, state->ellipse->last_poop_idx, zarray_size(state->past_poses) - 1);
-	if (dist >= 10)
+	double dist = compute_distance_travelled(state, state->last_poop_idx, zarray_size(state->past_poses) - 1);
+	if (dist >= 0.1)
 	{
 		zarray_add(state->past_ellipses, cur_ellipse);
-		state->ellipse->last_poop_idx = zarray_size(state->past_poses) - 1;
+		state->last_poop_idx = zarray_size(state->past_poses) - 1;
 	}
 	else if (dist == -1)
 	{
@@ -844,7 +863,11 @@ void compute_sigma_ellipse(state_t *state)
 	}
 
 	// TODO: 
+	gslu_vector_free(u1);
+	gslu_vector_free(u2);
 	gslu_matrix_free(sig);
+	gslu_eigen_free(sig_eigs);
+    }
     pthread_mutex_unlock(&state->mutex);
 }
 

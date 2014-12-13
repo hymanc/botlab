@@ -440,7 +440,7 @@ static void * render_thread (void *data)
                     vx_buffer_add_back (vbrobot, vxo_chain (vxo_lines (vx_resc_copyf (line, length),
                                                       length/3,
                                                       GL_LINES,
-                                                      vxo_lines_style (vx_red, 3.0f))));
+                                                      vxo_lines_style (vx_purple, 3.0f))));
 					vx_buffer_add_back (vbrobot, vxo_mat_from_xyt (state->pose->xyt));
 		    		/*vx_buffer_add_back (vbrobot, vxo_chain (vxo_mat_rotate_z (state->pose->xyt[2])),
 													   vxo_mat_translate3 (state->pose->xyt[0],
@@ -472,8 +472,12 @@ static void * render_thread (void *data)
             // Current Lidar Scan
             // HINT: vxo_points is what you want
 
+		// Lidar
+		int num_points = state->lidar->nranges;
+		if (num_points)
+		{
 		// Lidar for one pose
-/*			int64_t diff = INT_MAX;
+			int64_t diff = INT_MAX;
 			// find the pose closest to the lidar acquisition
 			int k, pose_idx = zarray_size(state->past_poses) - 1;
 			pose_xyt_t* cur_p = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
@@ -493,7 +497,6 @@ static void * render_thread (void *data)
 				}
 			}
 					
-			int num_points = state->lidar->nranges;
 			float *points = malloc ( (3 * num_points) * sizeof(float));
 
 			if (pose_idx >= 0)
@@ -515,28 +518,25 @@ static void * render_thread (void *data)
 				}
 
 			//render lidar dots
-			vx_buffer_t *vblidar = vx_world_get_buffer (state->vw, "lidar");
-			vx_buffer_add_back (vblidar,
+			vx_buffer_t *vblidaronepose = vx_world_get_buffer (state->vw, "lidaronepose");
+			vx_buffer_add_back (vblidaronepose,
 							vxo_chain ( vxo_mat_translate3 (cur_p->xyt[0],
 															cur_p->xyt[1], 0),
 										vxo_mat_rotate_z ( cur_p->xyt[2] ),
 										vxo_points( vx_resc_copyf (points, 3*num_points),
 													num_points, 
-													vxo_points_style (vx_magenta, 3.0f))));
-			vx_buffer_swap (vblidar);*/
-
+													vxo_points_style (vx_red, 3.0f))));
+			vx_buffer_swap (vblidaronepose);
+			}
 
 		// Lidar for interpolated poses
-			int64_t diff = INT_MAX;
-			int k;
 			int end_idx = zarray_size(state->past_poses) - 1;
 			int start_idx = zarray_size(state->past_poses) - 1;
 			pose_xyt_t* last_p = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
 			pose_xyt_t* first_p = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
 			printf("%d stored poses\n", zarray_size(state->past_poses));
 
-			int num_points = state->lidar->nranges;
-
+			diff = INT_MAX;
 			// find the pose closest to last point acquired
 			for (k = zarray_size(state->past_poses) - 1; k >= 0; k--)
 			{
@@ -618,13 +618,14 @@ static void * render_thread (void *data)
 				}
 
 			//render lidar dots
-			vx_buffer_t *vblidar = vx_world_get_buffer (state->vw, "lidar");
-			vx_buffer_add_back (vblidar,
+			vx_buffer_t *vblidarinterp = vx_world_get_buffer (state->vw, "lidarinterp");
+			vx_buffer_add_back (vblidarinterp,
 							vxo_chain ( vxo_points( vx_resc_copyf (points, 3*num_points),
 													num_points, 
-													vxo_points_style (vx_magenta, 3.0f))));
-			vx_buffer_swap (vblidar);
+													vxo_points_style (vx_green, 3.0f))));
+			vx_buffer_swap (vblidarinterp);
 			}
+		}
 
         pthread_mutex_unlock (&state->mutex);
         usleep (1000000/fps);

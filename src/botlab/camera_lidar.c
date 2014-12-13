@@ -698,6 +698,7 @@ int main (int argc, char *argv[])
         if (getopt_was_specified (state->gopt, "config"))
 	{
             state->calib = load_camera_calib (state->gopt);
+	    initialize_calibration(state);
             if (!state->calib)
                 exit (EXIT_FAILURE);
         }

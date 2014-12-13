@@ -294,14 +294,14 @@ static void * render_thread (void *user)
 			    // Compute Tangential Distortion Vector
 			    double dx0 = 2*l0*x*y + l1*(r2 + 2*pow(x,2));
 			    double dx1 = l1*(r2 + 2*pow(y,2)) + 2*l1*x*y;
-			    //u_d = round(rd * x + dx0);
-			    //v_d = round(rd * y + dx1);
-			    u_d = round((x-dx0)/rd);
-			    v_d = round((y-dx1)/rd);
+			    u_d = round(rd * x + dx0);
+			    v_d = round(rd * y + dx1);
+			    //u_d = round((x-dx0)/rd); // Reverse
+			    //v_d = round((y-dx1)/rd);
 			}
                         else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
 			{
-			    printf("Using Angular Polynomial Distortion/Calibration Model\n");
+			    printf("Using Angular Polynomial Distortion/Calibration Model: Not Implemented\n");
                             // TODO: (Angular Polynomial Calibration?)
                         }
                         else {

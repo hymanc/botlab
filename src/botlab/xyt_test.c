@@ -20,13 +20,18 @@ int main(int argc, char **argv)
     gsl_vector *v1 = gsl_vector_alloc(3);
     gsl_vector *v2 = gsl_vector_alloc(3);
     gsl_vector *v3 = gsl_vector_alloc(3);
+    gsl_vector *v4 = gsl_vector_alloc(3);
+    gsl_vector *v5 = gsl_vector_alloc(3);
     
     v1->data = (double[3]) {0,0,M_PI/2};
     v2->data = (double[3]) {1,2,0};
     xyt_head2tail_gsl(v3 , NULL, v1, v2);
-    gslu_vector_printf(v3, "V3");
+    gslu_vector_printf(v3, "HeadToHead1");
+    xyt_head2tail_gsl(v5, NULL, v2, v1);
+    gslu_vector_printf(v5, "HeadToHead2");
     
-    
+    xyt_tail2tail_gsl(v4, NULL, v3, v3);
+    gslu_vector_printf(v4, "TailToTail");
     /*
     xyt_inverse (double X_ji[3], double J_minus[3*3], const double X_ij[3]);
     xyt_inverse_gsl (gsl_vector *X_ji, gsl_matrix *J_minus, const gsl_vector *X_ij);

@@ -141,9 +141,9 @@ void * plot_handler(void *user) {
                    pData->gyro[2]);
 
             // gyro_int[0, 1, 2]:   processed gyro integral
-            printf(D_FORM",",     
-                   //procData->gyro_int[0], 
-                   //procData->gyro_int[1], 
+            printf(D_FORM","D_FORM","D_FORM",",     
+                   pData->gyro_int[0], 
+                   pData->gyro_int[1], 
                    pData->gyro_int[2]);
 
             // pose[x, y, t]:   estimated pose from wheel encoders
@@ -152,7 +152,7 @@ void * plot_handler(void *user) {
                    oData->xyt[1],
                    oData->xyt[2]);
 
-            printf("\b \b\n");  // prints new line and gets rid of last comma
+            printf("\n");  // prints new line and gets rid of last comma
 
             lastTime = pData->utime_sama5;
         }

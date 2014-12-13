@@ -55,6 +55,17 @@
 #define dmax(A,B) A < B ? B : A
 #define dmin(A,B) A < B ? A : B
 
+typedef struct ellipse ellipse_t;
+struct ellipse
+{
+	// Put whatever needs to be stored here
+	int last_poop_idx;
+	//Cody, you can change these if you want different values...
+	double x;
+	double y;
+	double t;
+};
+
 typedef struct state state_t;
 
 struct state 
@@ -72,6 +83,10 @@ struct state
 
 	// lidar
 	rplidar_laser_t *lidar;
+
+	// covariance ellipse
+	ellipse_t* ellipse;
+	zarray_t* past_ellipses;
 
     pthread_t command_thread;
     maebot_diff_drive_t cmd;
@@ -370,7 +385,6 @@ static void * render_thread (void *data)
 
             // Robot
 
-				vx_object_t *robot_scale = NULL;
                 vx_buffer_t *vbrobot = vx_world_get_buffer (state->vw, "robot");
                 vx_buffer_set_draw_order (vbrobot, 1);
                 enum {ROBOT_TYPE_TRIANGLE, ROBOT_TYPE_DALEK};
@@ -387,7 +401,6 @@ static void * render_thread (void *data)
 											vxo_mat_scale3 (0.104, 0.104, 0.151),
                                            	vxo_mat_translate3 (0.0, 0.0, 0.5),
                                            	vxo_cylinder (vxo_mesh_style (vx_blue)));
-						robot_scale = vxo_chain ( vxo_mat_scale3 (0.104, 0.104, 0.151), vxo_mat_translate3 (0.0, 0.0, 0.5));
                         break;
                     }
                     case ROBOT_TYPE_TRIANGLE:
@@ -395,8 +408,6 @@ static void * render_thread (void *data)
                         robot = vxo_chain (vxo_mat_scale (0.104),
                                            vxo_mat_scale3 (1, 0.5, 1),
                                            vxo_triangle (vxo_mesh_style (vx_blue)));
-						robot_scale = vxo_chain (vxo_mat_scale (0.104),
-												 vxo_mat_scale3 (1, 0.5, 1));
                         break;
                 }
 
@@ -415,10 +426,8 @@ static void * render_thread (void *data)
 					{
 						zarray_get(state->past_poses, i, last_pose);
 						line[j] = (last_pose->xyt)[0]; // next x
-						printf("line: x: %lf, ", line[j]);
 						j++;
 						line[j] = (last_pose->xyt)[1]; // next y
-						printf("y: %lf\n", line[j]);
 						j++;
 						line[j] = 0.0; // all z's are 0
 						j++;
@@ -440,7 +449,7 @@ static void * render_thread (void *data)
                     vx_buffer_add_back (vbrobot, vxo_chain (vxo_lines (vx_resc_copyf (line, length),
                                                       length/3,
                                                       GL_LINES,
-                                                      vxo_lines_style (vx_red, 3.0f))));
+                                                      vxo_lines_style (vx_purple, 3.0f))));
 					vx_buffer_add_back (vbrobot, vxo_mat_from_xyt (state->pose->xyt));
 		    		/*vx_buffer_add_back (vbrobot, vxo_chain (vxo_mat_rotate_z (state->pose->xyt[2])),
 													   vxo_mat_translate3 (state->pose->xyt[0],
@@ -473,6 +482,10 @@ static void * render_thread (void *data)
             // HINT: vxo_points is what you want
 
 		// Lidar
+		int num_points = state->lidar->nranges;
+		if (num_points)
+		{
+		// Lidar for one pose
 			int64_t diff = INT_MAX;
 			// find the pose closest to the lidar acquisition
 			int k, pose_idx = zarray_size(state->past_poses) - 1;
@@ -481,7 +494,6 @@ static void * render_thread (void *data)
 			for (k = zarray_size(state->past_poses) - 1; k >= 0; k--)
 			{
 				zarray_get(state->past_poses, k, cur_p);
-				printf("checking d pose %d: x: %lf, y: %lf, t: %lf\n", k, cur_p->xyt[0], cur_p->xyt[1], cur_p->xyt[2]);
 				int64_t d = abs_64(state->lidar->utime - cur_p->utime);
 				if ( d < diff )
 				{
@@ -494,20 +506,18 @@ static void * render_thread (void *data)
 				}
 			}
 					
-			int num_points = state->lidar->nranges;
 			float *points = malloc ( (3 * num_points) * sizeof(float));
 
 			if (pose_idx >= 0)
 			{
 				printf("using pose_idx: %d\n", pose_idx);
 				zarray_get( state->past_poses, pose_idx, cur_p);
-					
-				printf("cur_p x: %lf, y: %lf, t: %lf\n", (cur_p->xyt)[0], (cur_p->xyt)[1], (cur_p->xyt)[2]);
+				
+				//Set x,y positions of each point based off the one pose chosen
 				int l, m=0;
 				printf("number of lidar points: %d\n", num_points);
 				for(l = 0; l < num_points; l++)
 				{
-					// find theta base on theta relative to robot + theta of that pose
 					points[m] = state->lidar->ranges[l] * cos(state->lidar->thetas[l]);
 					m++;
 					points[m] = -state->lidar->ranges[l] * sin(state->lidar->thetas[l]);
@@ -516,27 +526,115 @@ static void * render_thread (void *data)
 					m++;
 				}
 
-			vx_buffer_t *vblidar = vx_world_get_buffer (state->vw, "lidar");
-			//vx_buffer_set_draw_order (vblidar, 1);
-			vx_buffer_add_back (vblidar,
-							vxo_chain (	/*vxo_mat_from_xyt (cur_p->xyt),*/
-										vxo_mat_translate3 (cur_p->xyt[0],
+			//render lidar dots
+			vx_buffer_t *vblidaronepose = vx_world_get_buffer (state->vw, "lidaronepose");
+			vx_buffer_add_back (vblidaronepose,
+							vxo_chain ( vxo_mat_translate3 (cur_p->xyt[0],
 															cur_p->xyt[1], 0),
 										vxo_mat_rotate_z ( cur_p->xyt[2] ),
 										vxo_points( vx_resc_copyf (points, 3*num_points),
 													num_points, 
-													vxo_points_style (vx_magenta, 3.0f))));
-			/*vx_buffer_add_back (vblidar,
-							vxo_chain (	vxo_mat_scale2(0.1,0.1),
-										vxo_mat_translate2 (xy[0], xy[1]),
-									   	vxo_circle (vxo_mesh_style (vx_magenta)), 
-										vxo_mat_translate2 (10, 10)));*/
-				//vx_buffer_add_back (vblidar, vxo_mat_from_xyt (cur_p->xyt));
-				//vx_buffer_add_back (vblidar, vxo_mat_from_xyt (state->pose->xyt));
-			
-			//vx_buffer_add_back (vblidar, robot_scale);
-			vx_buffer_swap (vblidar);
+													vxo_points_style (vx_red, 3.0f))));
+			vx_buffer_swap (vblidaronepose);
 			}
+
+		// Lidar for interpolated poses
+			int end_idx = zarray_size(state->past_poses) - 1;
+			int start_idx = zarray_size(state->past_poses) - 1;
+			pose_xyt_t* last_p = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
+			pose_xyt_t* first_p = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
+			printf("%d stored poses\n", zarray_size(state->past_poses));
+
+			diff = INT_MAX;
+			// find the pose closest to last point acquired
+			for (k = zarray_size(state->past_poses) - 1; k >= 0; k--)
+			{
+				zarray_get(state->past_poses, k, last_p);
+				int64_t d = abs_64(state->lidar->times[num_points - 1] - last_p->utime);
+				if ( d < diff )
+				{
+					diff = d;
+					end_idx = k;
+				}
+				else
+				{
+					break;
+				}
+			}
+			// find the pose closest to first point acquired
+			diff = INT_MAX;
+			for (k = end_idx; k >= 0; k--)
+			{
+				zarray_get(state->past_poses, k, first_p);
+				int64_t d = abs_64(state->lidar->times[0] - first_p->utime);
+				if ( d < diff )
+				{
+					diff = d;
+					start_idx = k;
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			if (end_idx >= 0 && start_idx >= 0)
+			{
+				printf("using end_idx: %d\n", end_idx);
+				printf("using start_idx: %d\n", start_idx);
+				zarray_get( state->past_poses, end_idx, last_p);
+				zarray_get( state->past_poses, start_idx, first_p);
+				
+				double end_t= last_p->xyt[2];
+				double start_t = first_p->xyt[2];
+				double theta_diff = end_t - start_t;
+				double t_slope = theta_diff / num_points;
+
+				double end_x = last_p->xyt[0];
+				double start_x = first_p->xyt[0];
+				double x_diff = end_x - start_x;
+				double x_slope = x_diff / num_points;
+
+				double end_y = last_p->xyt[1];
+				double start_y = first_p->xyt[1];
+				double y_diff = end_y - start_y;
+				double y_slope = y_diff / num_points;
+
+				float *points = malloc ( (3 * num_points) * sizeof(float));
+				//Set x,y positions of each point based off linear interpolation of poses
+				int l, m=0;
+				printf("number of lidar points: %d\n", num_points);
+				for(l = 0; l < num_points; l++)
+				{
+					double xlid = state->lidar->ranges[l] * cos(state->lidar->thetas[l]);
+					double ylid = -state->lidar->ranges[l] * sin(state->lidar->thetas[l]);
+					
+					double xinterp = start_x + ( l * x_slope);
+					double yinterp = start_y + ( l * y_slope);
+					double tinterp = start_t + ( l * t_slope);
+					
+					// x
+					points[m] = (cos(tinterp) * xlid)
+									- (sin(tinterp) * ylid) + xinterp;
+					m++;
+					// y
+					points[m] = (sin(tinterp) * xlid)
+									+ (cos(tinterp) * ylid) + yinterp;
+					m++;
+					// z
+					points[m] = 0;
+					m++;
+				}
+
+			//render lidar dots
+			vx_buffer_t *vblidarinterp = vx_world_get_buffer (state->vw, "lidarinterp");
+			vx_buffer_add_back (vblidarinterp,
+							vxo_chain ( vxo_points( vx_resc_copyf (points, 3*num_points),
+													num_points, 
+													vxo_points_style (vx_green, 3.0f))));
+			vx_buffer_swap (vblidarinterp);
+			}
+		}
 
         pthread_mutex_unlock (&state->mutex);
         usleep (1000000/fps);
@@ -626,6 +724,11 @@ state_t *state_create (void)
 	state->pose = calloc(1, sizeof(pose_xyt_t));
 	state->past_poses = zarray_create(sizeof(pose_xyt_t));
 
+	// ellipse
+	state->ellipse = calloc(1, sizeof(ellipse_t));
+	state->ellipse->last_poop_idx = 0;
+	state->past_ellipses = zarray_create(sizeof(ellipse_t));
+
 	// lidar
 	state->lidar = calloc(1, sizeof(rplidar_laser_t));
 
@@ -658,10 +761,43 @@ state_t *state_create (void)
 void state_destroy(state_t *state)
 {
 	zarray_destroy(state->past_poses);
+	zarray_destroy(state->past_ellipses);
 	free(state->pose);
 	free(state->lidar);
+	free(state->ellipse);
 	//TODO: Everything else...
 }
+
+/*
+ * @brief Computes the total distance (cm) travelled between two pose indices
+ *			Return the distance if the indices are valid
+ *			Else returns -1
+ * @param state is the current state struct
+ * @param idx_1 is the index of the start pose
+ * @param idx_2 is the index of the end pose
+ */
+ double compute_distance_travelled(state_t *state, int idx_1, int idx_2)
+ {
+	if ((idx_2 < idx_1) || (idx_1 < 0) || (idx_2 > zarray_size(state->past_poses) - 1))
+	{
+		return -1;
+	}
+
+	pose_xyt_t* cur_pose = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
+	pose_xyt_t* next_pose = (pose_xyt_t*)malloc(sizeof(pose_xyt_t));
+	zarray_get(state->past_poses, idx_1, cur_pose);
+	double dist = 0;
+	int i;
+	for(i = idx_1 + 1; i < zarray_size(state->past_poses); i++)
+	{
+		zarray_get(state->past_poses, i, next_pose);
+		double x = next_pose->xyt[0] - cur_pose->xyt[0];
+		double y = next_pose->xyt[1] - cur_pose->xyt[1];
+		dist += sqrt(pow(x, 2) + pow(y, 2));
+	}
+
+	return (dist / 100);
+ }
 
 /**
  * @brief Computes the uncertainty ellipse parameters for the given state
@@ -677,7 +813,36 @@ void compute_sigma_ellipse(state_t *state)
 	printf("Eigenstuff\n");
 	gslu_vector_printf(sig_eigs->D,"Evals");
 	gslu_matrix_printf(sig_eigs->V,"Evecs");
-	
+
+	// Store the values in state->ellipse
+	// If current pose is 10cm away from last time stored, 
+		// add this ellipse to the zarray state->past_ellipses
+		// Should probably have a field that stores the last pose 
+			// of the last ellipse that was stored or its index
+			// in state->past poses or something like that
+
+	ellipse_t* cur_ellipse = malloc(sizeof(ellipse_t));
+	// Fill in it's values
+	// Set state's ellipse equal to its values
+	cur_ellipse->last_poop_idx = state->ellipse->last_poop_idx;
+	//cur_ellipse->x = 
+	//cur_ellipse->y = 
+	//cur_ellipse->t = 
+	*(state->ellipse) = *(cur_ellipse);
+
+	// Add this ellipse to the zarray of ellipses if this pose is >= 10cm from the last poop
+	double dist = compute_distance_travelled
+			(state, state->ellipse->last_poop_idx, zarray_size(state->past_poses) - 1);
+	if (dist >= 10)
+	{
+		zarray_add(state->past_ellipses, cur_ellipse);
+		state->ellipse->last_poop_idx = zarray_size(state->past_poses) - 1;
+	}
+	else if (dist == -1)
+	{
+		printf ("Bad pose index comparison in compute_sigma_ellipse\n");
+	}
+
 	// TODO: 
 	gslu_matrix_free(sig);
     pthread_mutex_unlock(&state->mutex);

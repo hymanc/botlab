@@ -154,9 +154,9 @@ static void rplidar_handler (const lcm_recv_buf_t *rbuf, const char *channel, co
          	float theta = msg->thetas[i];
 			float range = msg->ranges[i];
 		 	float p[3];
-			p[0] = range * cos(theta);// x
-			p[1] = range * sin(theta);// y
-			p[2] = LIDAR_HEIGHT;// z
+			p[2] = range * cos(theta);// z
+			p[0] = range * sin(theta);// x
+			p[1] = 0;//0.053;//LIDAR_HEIGHT;// y
             zarray_add (state->laser_points, p);
         }
     }
@@ -189,7 +189,7 @@ static void * command_thread (void *user)
 void initialize_calibration(state_t *state)
 {
     printf("Initializing camera linear calibration\n");
-	gsl_matrix *H = state->H;
+    gsl_matrix *H = state->H;
     gsl_matrix *K = state->K;
     calib_t *cal = state->calib;
     
@@ -202,10 +202,10 @@ void initialize_calibration(state_t *state)
     gsl_matrix_set(K, 2, 2, 1);
     
     // Set Extrinsics matrix
-    gsl_matrix_set(H, 0, 0, 1);		// No rotation R=I
+    gsl_matrix_set(H, 0, 0, 1);		
     gsl_matrix_set(H, 1, 1, 1);		
     gsl_matrix_set(H, 2, 2, 1);		
-    gsl_matrix_set(H, 2, 3, 0.088);	// Z-translation
+    //gsl_matrix_set(H, 2, 3, 0.088);	// Z-translation
     
     state->cal_matrix = gslu_blas_mm_alloc(K, H); // Store out combined cal matrix
 }
@@ -225,11 +225,15 @@ static void * render_thread (void *user)
 
     vx_buffer_t *vb_text = vx_world_get_buffer (state->vw, "text");
     vx_buffer_t *vb_image = vx_world_get_buffer (state->vw, "image");
+    vx_buffer_t *vb_lidar = vx_world_get_buffer (state->vw, "lidar");
     
     // Render viewer text
     vx_object_t *vt = vxo_text_create (VXO_TEXT_ANCHOR_TOP_RIGHT, "<<right,#0000ff>>Robot viewer!\n");
     vx_buffer_add_back (vb_text, vxo_pix_coords (VX_ORIGIN_TOP_RIGHT, vt));
     vx_buffer_swap (vb_text);
+    
+    uint32_t nlpts;
+    float *lpts;
     
     // Render loop
     while (state->running) 
@@ -239,7 +243,7 @@ static void * render_thread (void *user)
 
         image_u32_t *im = NULL;
         if (isrc)
-		{
+	{
             image_source_data_t isdata;
             int res = isrc->get_frame (isrc, &isdata);
             if (!res)
@@ -254,39 +258,41 @@ static void * render_thread (void *user)
         }
 
         if (im != NULL) 
-		{
+	{
             pthread_mutex_lock (&state->mutex);
             {
                 // Project lidar points into camera image
                 if (state->calib) 
-				{
+		{
                     const calib_t *calib = state->calib;
 		    
-		   		gsl_matrix *cmat = state->cal_matrix;
-              	for (int i=0; i < zarray_size (state->laser_points); i++) 
-		    	{
+		    gsl_matrix *cmat = state->cal_matrix;
+		    //nlpts = zarray_size(state->laser_points);
+		    //lpts = (float *) malloc(sizeof(float)*2*nlpts);
+		    for (int i=0; i < zarray_size (state->laser_points); i++) 
+		    {
                 	// laser point in camera reference frame
-                    float p_c[3];
-                    zarray_get (state->laser_points, i, p_c); // TODO: Check z-correctness of laser
-                    float X = p_c[0], Y = p_c[1], Z = p_c[2];
-   					
-					printf("LIDAR: X:%.3f, Y:%.3f, Z:%.3f\n",X,Y,Z);
-					gsl_vector *xyz_world = gsl_vector_alloc(4);
-					gsl_vector_set(xyz_world, 0, X);
-					gsl_vector_set(xyz_world, 1, Y);
-					gsl_vector_set(xyz_world, 2, Z);
-					gsl_vector_set(xyz_world, 3, 1);
+			float p_c[3];
+			zarray_get (state->laser_points, i, p_c); // TODO: Check z-correctness of laser
+			float X = p_c[0], Y = p_c[1], Z = p_c[2];
 			
-					//gslu_matrix_printf(cmat, "CMAT");
-					//gslu_vector_printf(xyz_world, "XYZ_world");
-					gsl_vector *xy_n = gslu_blas_mv_alloc(cmat, xyz_world); // Linear undistorted image coordinates
-					// Pinhole model w/ distortion
+			//printf("LIDAR: X:%.3f, Y:%.3f, Z:%.3f\n",X,Y,Z);
+			gsl_vector *xyz_world = gsl_vector_alloc(4);
+			gsl_vector_set(xyz_world, 0, X);
+			gsl_vector_set(xyz_world, 1, Y);
+			gsl_vector_set(xyz_world, 2, Z);
+			gsl_vector_set(xyz_world, 3, 1);
+	
+			//gslu_matrix_printf(cmat, "CMAT");
+			//gslu_vector_printf(xyz_world, "XYZ_world");
+			gsl_vector *xy_n = gslu_blas_mv_alloc(cmat, xyz_world); // Linear undistorted image coordinates
+			// Pinhole model w/ distortion
             		int u_d = 0;
             		int v_d = 0;
             
 			if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
 			{
-			    printf("Using Caltech Distortion/Calibration Model\n");
+			    //printf("Using Caltech Distortion/Calibration Model\n");
 			    double x = gsl_vector_get(xy_n, 0);
 			    double y = gsl_vector_get(xy_n, 1);
 			    
@@ -308,23 +314,26 @@ static void * render_thread (void *user)
 			    //u_d = round(rd * x + dx0);
 			    //v_d = round(rd * y + dx1);
 			    u_d = round(x);
-				v_d = round(y);
-				//u_d = round((x-dx0)/rd); // Reverse
+			    v_d = round(y);
+			    //lpts[2*i] = u_d;
+			    //lpts[2*i + 1] = v_d;
+			    //u_d = round((x-dx0)/rd); // Reverse
 			    //v_d = round((y-dx1)/rd);
-				printf("LIDAR Point computed as %d,%d\n", u_d, v_d);
+			    //printf("LIDAR Point computed as %d,%d\n", u_d, v_d);
 			}
-            else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
-			{
+		else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
+		{
 			    printf("Using Angular Polynomial Distortion/Calibration Model: Not Implemented\n");
                             // TODO: (Angular Polynomial Calibration?)
-            }
-           	else {
-            	printf ("error: unsupported distortion model: %s\n", calib->class);
-                exit (EXIT_FAILURE);
-            }
-                        // Draw projected lidar points in image
-            if (u_d > 0 && u_d < im->width-1 && v_d > 0 && v_d < im->height-1) 
-			{
+		}
+           	else 
+		{
+		    printf ("error: unsupported distortion model: %s\n", calib->class);
+		    exit (EXIT_FAILURE);
+		}
+		// Draw projected lidar points in image
+		if (u_d > 1 && u_d < im->width-2 && v_d > 1 && v_d < im->height-2) 
+		{
                             const float depth = 256;
                             float hue = Z * depth;
                             if (hue > depth)
@@ -332,15 +341,28 @@ static void * render_thread (void *user)
                             uint32_t color = hsv2rgb(hue, 1.0, 1.0);
 			    printf("LIDAR Point at X:%d, Y:%d\n", u_d, v_d);
 			    float points[2] = {u_d, v_d};
-                vx_buffer_add_back(vb_image, vxo_chain(
-								vxo_mat_translate2 (u_d, v_d), 
-								vxo_points( vx_resc_copyf (points, 2), 1, vxo_points_style(vx_red, 2.0f))
-								));
+			    // TODO: Depth color
+			    
+			    im->buf[(v_d-1) * im->stride + u_d+1] = color;
+			    im->buf[(v_d-1) * im->stride + u_d] = color;
+			    im->buf[(v_d-1) * im->stride + u_d-1] = color;
+			    
+			    im->buf[v_d * im->stride + u_d+1] = color;
+			    im->buf[v_d * im->stride + u_d] = color;
+			    im->buf[v_d * im->stride + u_d-1] = color;
+			    
+			    im->buf[(v_d+1) * im->stride + u_d+1] = color;
+			    im->buf[(v_d+1) * im->stride + u_d] = color;
+			    im->buf[(v_d+1) * im->stride + u_d-1] = color;
+			    /*vx_buffer_add_back(vb_lidar, vxo_chain(
+								vxo_points( vx_resc_copyf (points, 2), 3, vxo_points_style(vx_red, 2.0f))
+								));*/
              }
                        
-             gslu_vector_free(xyz_world);
-			 gslu_vector_free(xy_n);
+	    gslu_vector_free(xyz_world);
+	    gslu_vector_free(xy_n);
          }
+         //vx_buffer_swap (vb_lidar);
      }
    }
             pthread_mutex_unlock (&state->mutex);
@@ -359,7 +381,10 @@ static void * render_thread (void *user)
                                                           vxo_chain (vxo_mat_scale (decimate),
                                                                      vxo_mat_translate3 (0, -im->height, 0),
                                                                      vo)));
+	    //vx_buffer_add_back(vb_image, vxo_chain(vxo_points( vx_resc_copyf (lpts, 2), nlpts, vxo_points_style(vx_red, 2.0f))));
+
             vx_buffer_swap (vb_image);
+	    //vx_buffer_swap (vb_lidar);
             image_u32_destroy (im);
         }
         usleep (1000000/Hz - (utime_now () - t0));

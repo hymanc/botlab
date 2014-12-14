@@ -58,7 +58,6 @@
 typedef struct ellipse ellipse_t;
 struct ellipse
 {
-	// Put whatever needs to be stored here
 	double x;
 	double y;
 	double t;
@@ -393,7 +392,7 @@ static void * render_thread (void *data)
             // Robot
 
                 vx_buffer_t *vbrobot = vx_world_get_buffer (state->vw, "robot");
-                vx_buffer_set_draw_order (vbrobot, 1);
+                //vx_buffer_set_draw_order (vbrobot, 1);
                 enum {ROBOT_TYPE_TRIANGLE, ROBOT_TYPE_DALEK};
                 vx_object_t *robot = NULL;
                 switch (ROBOT_TYPE_DALEK) 
@@ -458,14 +457,7 @@ static void * render_thread (void *data)
                                                       GL_LINES,
                                                       vxo_lines_style (vx_purple, 3.0f))));
 					vx_buffer_add_back (vbrobot, vxo_mat_from_xyt (state->pose->xyt));
-		    		/*vx_buffer_add_back (vbrobot, vxo_chain (vxo_mat_rotate_z (state->pose->xyt[2])),
-													   vxo_mat_translate3 (state->pose->xyt[0],
-																		   state->pose->xyt[1],
-																		   0.0));*/
 					vx_buffer_add_back (vbrobot, robot);
-					/*vx_buffer_add_back (vbrobot, vxo_chain (vxo_mat_scale3 (0.104, 0.104, 0.151),
-                                           	vxo_mat_translate3 (0.0, 0.0, 0.5),
-                                           	vxo_cylinder (vxo_mesh_style (vx_blue))));*/
 					vx_buffer_swap(vbrobot);
 					printf("x: %lf, y: %lf, t: %lf\n", state->pose->xyt[0], state->pose->xyt[1], state->pose->xyt[2]);
 				}
@@ -476,18 +468,54 @@ static void * render_thread (void *data)
                
 		compute_sigma_ellipse(state);
 
-		// TODO: Robot Covariance Ellipse
+        //Ellipse
 		vx_buffer_t *vbellipse = vx_world_get_buffer(state->vw, "Ellipse");
-		vx_buffer_set_draw_order(vbellipse, 1);
+		//vx_buffer_set_draw_order(vbellipse, 1);
 
-		vx_object_t *ellipse = vxo_chain(vxo_mat_scale3 (5, 2, 1), //
+		vx_object_t *ellipse = vxo_chain(vxo_mat_scale3 
+                                ( state->ellipse->axis1, 
+                                  state->ellipse->axis2, 
+                                  state->ellipse->tcovar), //
 						 vxo_circle (vxo_mesh_style (ellipse_color)));
+
+        float covtline[6] = { 0.0, 0.0, 0.0, 
+                              0.0, 0.0, state->ellipse->t};
+        vx_object_t *covt  = vxo_chain (	vxo_lines (	vx_resc_copyf (covtline, 6),
+														2,
+														GL_LINES,
+														vxo_lines_style (vx_orange, 3.0f)));
 		if(state->pose)
 		{
-		    vx_buffer_add_back(vbellipse, vxo_chain(vxo_mat_from_xyt(state->pose->xyt), ellipse));
+		    vx_buffer_add_back(vbellipse, vxo_chain
+                                            ( vxo_mat_translate2
+                                                ( state->ellipse->x, state->ellipse->y ),
+                                              vxo_mat_rotate_z( state->ellipse->t ),
+                                              ellipse, covt));
 		    vx_buffer_swap(vbellipse);
 		}
-		
+	
+        // Ellipse trail
+        vx_buffer_t *vbellipsetrail = vx_world_get_buffer(state->vw, "ellipsetrail");
+        ellipse_t* cur_ellipse = malloc(sizeof(ellipse_t));
+        int n;
+        for(n = 0; n < zarray_size(state->past_ellipses); n++)
+        {
+           zarray_get(state->past_ellipses, n, cur_ellipse);
+           vx_object_t *cur_ellipse_obj = vxo_chain ( vxo_mat_scale3
+                                                        ( cur_ellipse->axis1,
+                                                          cur_ellipse->axis2,
+                                                          cur_ellipse->tcovar),
+                                                      vxo_circle 
+                                                        ( vxo_lines_style (vx_black, 3.0f )));
+           vx_buffer_add_back (vbellipsetrail, vxo_chain
+                                                ( vxo_mat_translate2
+                                                    ( cur_ellipse->x, cur_ellipse->y ),
+                                                  vxo_mat_rotate_z ( cur_ellipse->t ),
+                                                  cur_ellipse_obj));
+        }
+        vx_buffer_swap(vbellipsetrail);
+        free(cur_ellipse);
+
 		// Current Lidar Scan
 		// Lidar
 		int num_points = state->lidar->nranges;
@@ -545,6 +573,7 @@ static void * render_thread (void *data)
 													vxo_points_style (vx_red, 3.0f))));
 			vx_buffer_swap (vblidaronepose);
 			}
+            free(cur_p);
 
 		// Lidar for interpolated poses
 			int end_idx = zarray_size(state->past_poses) - 1;
@@ -642,6 +671,8 @@ static void * render_thread (void *data)
 													vxo_points_style (vx_green, 3.0f))));
 			vx_buffer_swap (vblidarinterp);
 			}
+            free(last_p);
+            free(first_p);
 		}
 
         pthread_mutex_unlock (&state->mutex);

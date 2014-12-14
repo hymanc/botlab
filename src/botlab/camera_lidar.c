@@ -36,6 +36,8 @@
 #define JOYSTICK_REVERSE_SPEED2 -0.35f
 #define JOYSTICK_FORWARD_SPEED2  0.45f
 
+#define LIDAR_HEIGHT 0.141 // LIDAR height in meters
+
 // Camera calibration struct (Caltech model)
 typedef struct calib calib_t;
 struct calib 
@@ -147,9 +149,14 @@ static void rplidar_handler (const lcm_recv_buf_t *rbuf, const char *channel, co
         zarray_clear (state->laser_points);
 
         for (int i=0; i < msg->nranges; i++) 
-	{
-            // CONVERT POINTS TO CAMERA FRAME AND STORE IN ZARRAY
-            float p[3];
+		{		
+			// CONVERT POINTS TO CAMERA FRAME AND STORE IN ZARRAY
+         	float theta = msg->thetas[i];
+			float range = msg->ranges[i];
+		 	float p[3];
+			p[0] = range * cos(theta);// x
+			p[1] = range * sin(theta);// y
+			p[2] = LIDAR_HEIGHT;// z
             zarray_add (state->laser_points, p);
         }
     }
@@ -181,7 +188,8 @@ static void * command_thread (void *user)
  */
 void initialize_calibration(state_t *state)
 {
-    gsl_matrix *H = state->H;
+    printf("Initializing camera linear calibration\n");
+	gsl_matrix *H = state->H;
     gsl_matrix *K = state->K;
     calib_t *cal = state->calib;
     
@@ -231,7 +239,7 @@ static void * render_thread (void *user)
 
         image_u32_t *im = NULL;
         if (isrc)
-	{
+		{
             image_source_data_t isdata;
             int res = isrc->get_frame (isrc, &isdata);
             if (!res)
@@ -246,34 +254,37 @@ static void * render_thread (void *user)
         }
 
         if (im != NULL) 
-	{
+		{
             pthread_mutex_lock (&state->mutex);
             {
                 // Project lidar points into camera image
                 if (state->calib) 
-		{
+				{
                     const calib_t *calib = state->calib;
 		    
-		    gsl_matrix *cmat = state->cal_matrix;
-                    for (int i=0; i < zarray_size (state->laser_points); i++) 
-		    {
-                        // laser point in camera reference frame
-                        float p_c[3];
-                        zarray_get (state->laser_points, i, p_c); // TODO: Check z-correctness of laser
-                        float X = p_c[0], Y = p_c[1], Z = p_c[2];
-    
-			gsl_vector *xyz_world = gsl_vector_alloc(4);
-			gsl_vector_set(xyz_world, 0, X);
-			gsl_vector_set(xyz_world, 1, Y);
-			gsl_vector_set(xyz_world, 2, Z);
-			gsl_vector_set(xyz_world, 3, 1);
+		   		gsl_matrix *cmat = state->cal_matrix;
+              	for (int i=0; i < zarray_size (state->laser_points); i++) 
+		    	{
+                	// laser point in camera reference frame
+                    float p_c[3];
+                    zarray_get (state->laser_points, i, p_c); // TODO: Check z-correctness of laser
+                    float X = p_c[0], Y = p_c[1], Z = p_c[2];
+   					
+					printf("LIDAR: X:%.3f, Y:%.3f, Z:%.3f\n",X,Y,Z);
+					gsl_vector *xyz_world = gsl_vector_alloc(4);
+					gsl_vector_set(xyz_world, 0, X);
+					gsl_vector_set(xyz_world, 1, Y);
+					gsl_vector_set(xyz_world, 2, Z);
+					gsl_vector_set(xyz_world, 3, 1);
 			
-			gsl_vector *xy_n = gslu_blas_mv_alloc(cmat, xyz_world); // Linear undistorted image coordinates
-			
-			// Pinhole model w/ distortion
-                        int u_d = 0;
-                        int v_d = 0;
-                        if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
+					//gslu_matrix_printf(cmat, "CMAT");
+					//gslu_vector_printf(xyz_world, "XYZ_world");
+					gsl_vector *xy_n = gslu_blas_mv_alloc(cmat, xyz_world); // Linear undistorted image coordinates
+					// Pinhole model w/ distortion
+            		int u_d = 0;
+            		int v_d = 0;
+            
+			if (0==strcmp (calib->class, "april.camera.models.CaltechCalibration")) 
 			{
 			    printf("Using Caltech Distortion/Calibration Model\n");
 			    double x = gsl_vector_get(xy_n, 0);
@@ -294,23 +305,25 @@ static void * render_thread (void *user)
 			    // Compute Tangential Distortion Vector
 			    double dx0 = 2*l0*x*y + l1*(r2 + 2*pow(x,2));
 			    double dx1 = l1*(r2 + 2*pow(y,2)) + 2*l1*x*y;
-			    u_d = round(rd * x + dx0);
-			    v_d = round(rd * y + dx1);
-			    //u_d = round((x-dx0)/rd); // Reverse
+			    //u_d = round(rd * x + dx0);
+			    //v_d = round(rd * y + dx1);
+			    u_d = round(x);
+				v_d = round(y);
+				//u_d = round((x-dx0)/rd); // Reverse
 			    //v_d = round((y-dx1)/rd);
+				printf("LIDAR Point computed as %d,%d\n", u_d, v_d);
 			}
-                        else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
+            else if (0==strcmp (calib->class, "april.camera.models.AngularPolynomialCalibration")) 
 			{
 			    printf("Using Angular Polynomial Distortion/Calibration Model: Not Implemented\n");
                             // TODO: (Angular Polynomial Calibration?)
-                        }
-                        else {
-                            printf ("error: unsupported distortion model: %s\n", calib->class);
-                            exit (EXIT_FAILURE);
-                        }
-
+            }
+           	else {
+            	printf ("error: unsupported distortion model: %s\n", calib->class);
+                exit (EXIT_FAILURE);
+            }
                         // Draw projected lidar points in image
-                        if (u_d > 0 && u_d < im->width-1 && v_d > 0 && v_d < im->height-1) 
+            if (u_d > 0 && u_d < im->width-1 && v_d > 0 && v_d < im->height-1) 
 			{
                             const float depth = 256;
                             float hue = Z * depth;
@@ -319,19 +332,21 @@ static void * render_thread (void *user)
                             uint32_t color = hsv2rgb(hue, 1.0, 1.0);
 			    printf("LIDAR Point at X:%d, Y:%d\n", u_d, v_d);
 			    float points[2] = {u_d, v_d};
-                            vx_buffer_add_back(vb_image, vxo_chain(vxo_mat_translate2 (u_d, v_d), vxo_points( vx_resc_copyf (points, 2), 1, vxo_points_style(vx_red, 2.0f))));
-                        }
-                        
-                        gslu_vector_free(xyz_world);
-			gslu_vector_free(xy_n);
-                    }
-                }
-            }
+                vx_buffer_add_back(vb_image, vxo_chain(
+								vxo_mat_translate2 (u_d, v_d), 
+								vxo_points( vx_resc_copyf (points, 2), 1, vxo_points_style(vx_red, 2.0f))
+								));
+             }
+                       
+             gslu_vector_free(xyz_world);
+			 gslu_vector_free(xy_n);
+         }
+     }
+   }
             pthread_mutex_unlock (&state->mutex);
-
             double decimate = getopt_get_double (state->gopt, "decimate");
             if (decimate != 1.0) 
-	    {
+	    	{
                 image_u32_t *im2 = image_util_u32_decimate (im, decimate);
                 image_u32_destroy (im);
                 im = im2;
@@ -609,7 +624,7 @@ state_t * state_create (void)
     // Camera linear calibration matrices
     state->H = gsl_matrix_calloc(3,4); // Camera extrinsics
     state->K = gsl_matrix_calloc(3,3); // Camera intrinsics
-    
+   	state->cal_matrix = gsl_matrix_calloc(3,3); 
     // note, pg_sd() family of functions will trigger their own callback of my_param_changed(),
     // hence using a recursive mutex avoids deadlocking when using pg_sd() within my_param_changed()
     pthread_mutexattr_t attr;
@@ -698,7 +713,7 @@ int main (int argc, char *argv[])
         if (getopt_was_specified (state->gopt, "config"))
 	{
             state->calib = load_camera_calib (state->gopt);
-	    initialize_calibration(state);
+			initialize_calibration(state);
             if (!state->calib)
                 exit (EXIT_FAILURE);
         }
@@ -706,6 +721,7 @@ int main (int argc, char *argv[])
 	{
             printf ("No Calibration Specified, using default\n");
 	    state->calib = load_camera_calib(state->gopt);
+		initialize_calibration(state);
 	}
     }
 

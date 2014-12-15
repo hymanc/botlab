@@ -266,6 +266,13 @@ static void * render_thread (void *user)
 		    gsl_matrix *cmat = state->cal_matrix;
 		    //nlpts = zarray_size(state->laser_points);
 		    //lpts = (float *) malloc(sizeof(float)*2*nlpts);
+		    
+		    double l0 = state->calib->lc[0];
+		    double l1 = state->calib->lc[1];
+		    double k0 = state->calib->kc[0];
+		    double k1 = state->calib->kc[1];
+		    double k2 = state->calib->kc[2];
+			
 		    for (int i=0; i < zarray_size (state->laser_points); i++) 
 		    {
                 	// laser point in camera reference frame
@@ -299,12 +306,6 @@ static void * render_thread (void *user)
 			    double r2 = pow(xc,2) + pow(yc,2);
 			    double r4 = pow(r2, 2);
 			    double r6 = pow(r2, 3);
-			    double l0 = state->calib->lc[0];
-			    double l1 = state->calib->lc[1];
-			    double k0 = state->calib->kc[0];
-			    double k1 = state->calib->kc[1];
-			    double k2 = state->calib->kc[2];
-			    
 			    // Compute Radial Distortion Scalar
 			    double rd = 1 + k0*r2 + k1*r4 + k2*r6;
 		
@@ -313,8 +314,8 @@ static void * render_thread (void *user)
 			    double dx1 = l0*(r2 + 2*pow(yc,2)) + 2*l1*xc*yc;
 			    u_d = round(rd * xc + dx0 + state->calib->cc[0]); // Add distortion corrections to LIDAR projection
 			    v_d = round(rd * yc + dx1 + state->calib->cc[1]);
-			    //u_d = round(x); // No distortion correction (TEST)
-			    //v_d = round(y);
+			    u_d = round(x); // No distortion correction (TEST)
+			    v_d = round(y);
 			    //printf("LIDAR Point computed as %d,%d\n", u_d, v_d);
 			}
            	else 

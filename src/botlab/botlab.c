@@ -55,6 +55,8 @@
 #define dmax(A,B) A < B ? B : A
 #define dmin(A,B) A < B ? A : B
 
+//#define NO_ELLIPSE
+
 typedef struct ellipse ellipse_t;
 struct ellipse
 {
@@ -88,7 +90,8 @@ struct state
     ellipse_t* ellipse;
     zarray_t* past_ellipses;
     uint32_t last_poop_idx;
-	
+    uint8_t render_ellipses;
+
     pthread_t command_thread;
     maebot_diff_drive_t cmd;
     bool manual_control;
@@ -495,6 +498,7 @@ static void * render_thread (void *data)
 		}
 	
         // Ellipse trail
+        #ifndef NO_ELLIPSE
         vx_buffer_t *vbellipsetrail = vx_world_get_buffer(state->vw, "ellipsetrail");
         ellipse_t* cur_ellipse = malloc(sizeof(ellipse_t));
         int n;
@@ -515,7 +519,7 @@ static void * render_thread (void *data)
         }
         vx_buffer_swap(vbellipsetrail);
         free(cur_ellipse);
-
+        #endif
 		// Current Lidar Scan
 		// Lidar
 		int num_points = state->lidar->nranges;
@@ -932,17 +936,30 @@ int main (int argc, char *argv[])
     getopt_add_string (state->gopt, '\0', "maebot-diff-drive-channel", "MAEBOT_DIFF_DRIVE", "LCM channel name");
     getopt_add_string (state->gopt, '\0', "odometry-channel", "BOTLAB_ODOMETRY", "LCM channel name");
     getopt_add_string (state->gopt, '\0', "rplidar-laser-channel", "RPLIDAR_LASER", "LCM channel name");
+    //getopt_add_string (state->gopt, 'e', "no-ellipses", 0, "Ellipse Flag");
 
-
-    if (!getopt_parse (state->gopt, argc, argv, 0)) {
+    if (!getopt_parse (state->gopt, argc, argv, 0)) 
+    {
         getopt_do_usage (state->gopt);
         exit (EXIT_FAILURE);
     }
-    else if (getopt_get_bool (state->gopt,"help")) {
+    else if (getopt_get_bool (state->gopt,"help"))
+    {
         getopt_do_usage (state->gopt);
         exit (EXIT_SUCCESS);
     }
 
+    /*
+    if (getopt_get_bool (state->gopt,"no-ellipses")) 
+    {
+        printf("Not rendering ellipsepoops\n");
+	state->render_ellipses = 0;
+    }
+    else
+    {
+	state->render_ellipses = 1;
+    }*/
+    
     // Set up Vx remote display
     vx_remote_display_source_attr_t remote_attr;
     vx_remote_display_source_attr_init (&remote_attr);
